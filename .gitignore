@@ -1,0 +1,27 @@
+# ------------------------------------------------------------------
+# Whitelist approach: ignore everything at the top level, then allow
+# only the files that belong in the public repo. This keeps the venv,
+# node_modules, the reused-dataset clones, and working drafts out.
+# ------------------------------------------------------------------
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/requirements.txt
+!/LICENSE
+!/docs
+!/smell_injection
+!/eval_tool
+!/arc_qwen
+
+# Within the allowed folders, still exclude generated / heavy / third-party bits:
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+
+# generated HTML reports (regenerate with the view_* / report scripts)
+*.html
+
+# build/backup artifacts
+*.zip

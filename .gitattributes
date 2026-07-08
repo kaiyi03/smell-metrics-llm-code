@@ -1,0 +1,5 @@
+# Normalise line endings: LF in the repo and in working copies, so the
+# scripts that run on the Linux ARC cluster never carry Windows CRLF.
+* text=auto eol=lf
+*.docx binary
+*.zip binary

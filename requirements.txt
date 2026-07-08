@@ -1,0 +1,25 @@
+# Python dependencies for the benchmark and evaluation tool.
+# Install into a virtual environment:  pip install -r requirements.txt
+
+# --- core: benchmark build + structural measures ---
+numpy
+datasets
+radon
+pylint
+ruff
+
+# --- similarity measures ---
+sacrebleu
+rouge-score
+codebleu
+tree-sitter
+tree-sitter-python
+nltk
+
+# --- model generation (ARC GPU phase) ---
+transformers
+# torch is installed separately, matched to your CUDA, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+
+# Note: jscpd (the duplicate-code detector) is a Node tool, not a pip package:
+#   npm install jscpd

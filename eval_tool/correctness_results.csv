@@ -1,0 +1,13 @@
+smell,n_tested,clean_pass,smelly_pass,clean_pass_base,behaviour_kept
+broad_except,100,100,100,100,100
+deep_nesting,100,100,100,100,100
+duplicate_code,100,100,100,100,100
+long_method,100,100,100,100,100
+long_parameter_list,100,100,100,100,100
+magic_number,100,100,100,100,100
+mutable_default,100,100,100,100,100
+perf_manual_copy,31,31,31,31,31
+perf_manual_list,46,46,46,46,46
+perf_try_in_loop,100,100,100,100,100
+too_many_booleans,100,100,100,100,100
+unused_import,100,100,100,100,100
