@@ -1,0 +1,493 @@
+<!doctype html><html><head><meta charset="utf-8">
+<title>Injected smells &mdash; reference guide</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;
+         color: #1a1a1a; background: #fafafa; line-height: 1.5; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 28px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: #666; margin: 0 0 24px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em;
+        color: #555; border-bottom: 2px solid #e2e2e2; padding-bottom: 6px;
+        margin: 40px 0 6px; }
+  .catnote { color: #666; font-size: 13.5px; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e4e4e4; border-radius: 10px;
+           padding: 20px 22px; margin: 16px 0; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .card h3 { margin: 0 0 2px; font-size: 19px; font-family: ui-monospace, Consolas, monospace; }
+  .tool { font-size: 12.5px; color: #fff; background: #4b5563; border-radius: 5px;
+           padding: 2px 8px; margin-left: 8px; vertical-align: middle; }
+  .tool.pylint { background: #2563eb; } .tool.ruff { background: #7c3aed; }
+  .tool.jscpd { background: #0891b2; }
+  .rule { color: #777; font-size: 13px; font-family: ui-monospace, monospace; margin: 2px 0 14px; }
+  .lbl { font-weight: 600; font-size: 12px; text-transform: uppercase;
+          letter-spacing: .04em; color: #888; margin: 12px 0 3px; }
+  .txt { margin: 2px 0 4px; }
+  code { background: #f0f0f2; padding: 1px 5px; border-radius: 4px;
+          font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .keep { color: #15803d; font-weight: 600; }
+  .caveat { background: #fff8e6; border-left: 4px solid #f0b429; padding: 10px 14px;
+             border-radius: 0 6px 6px 0; margin: 12px 0 2px; font-size: 14px; }
+  .ex { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; }
+  .ex .col { border: 1px solid #e4e4e4; border-radius: 8px; overflow: hidden; }
+  .ex .head { font-size: 12px; font-weight: 600; padding: 5px 12px; color: #fff; }
+  .ex .clean .head { background: #4b5563; }
+  .ex .smelly .head { background: #b91c1c; }
+  .ex pre { margin: 0; padding: 10px 12px; font-family: ui-monospace, Consolas, monospace;
+             font-size: 12.5px; overflow-x: auto; background: #fff; }
+  .ex pre div { white-space: pre; padding: 0 4px; border-radius: 3px; }
+  .ex pre .add { background: #dcfce7; }
+  .ex pre .del { background: #fee2e2; }
+  .src { font-size: 11.5px; color: #999; padding: 3px 12px; border-top: 1px solid #eee; }
+  .toc { background: #fff; border: 1px solid #e4e4e4; border-radius: 10px; padding: 14px 20px; }
+  .toc a { color: #2563eb; text-decoration: none; font-family: ui-monospace, monospace;
+            font-size: 13px; }
+  .toc a:hover { text-decoration: underline; }
+  .toc span { display: inline-block; margin: 3px 14px 3px 0; }
+  @media (max-width: 720px) { .ex { grid-template-columns: 1fr; } }
+</style></head><body><div class="wrap">
+<h1>Injected smells &mdash; reference guide</h1>
+<p class="sub">The 12 code smells in the benchmark, how each is injected, and real
+clean&rarr;smelly examples from the dataset. Green = added by the injector, red = removed.</p>
+<div class="toc"><b>Jump to:</b><br>
+<span><a href="#mutable_default">mutable_default</a></span>
+<span><a href="#broad_except">broad_except</a></span>
+<span><a href="#dead_code">dead_code</a></span>
+<span><a href="#long_parameter_list">long_parameter_list</a></span>
+<span><a href="#deep_nesting">deep_nesting</a></span>
+<span><a href="#complex_conditional">complex_conditional</a></span>
+<span><a href="#long_method">long_method</a></span>
+<span><a href="#magic_number">magic_number</a></span>
+<span><a href="#perf_try_in_loop">perf_try_in_loop</a></span>
+<span><a href="#inefficient_loop">inefficient_loop</a></span>
+<span><a href="#inefficient_copy">inefficient_copy</a></span>
+<span><a href="#duplicate_code">duplicate_code</a></span>
+</div>
+<div class="card" style="margin-top:22px">
+    <b>How to read this.</b> Every smell is defined <i>operationally</i>: it is
+    whatever its detector flags (pylint, ruff, or jscpd). Every injection is
+    <b>behaviour-preserving</b> &mdash; the clean and smelly halves pass exactly the
+    same tests &mdash; which is what makes each a valid labelled pair. The three
+    groups below differ only in how natural the result looks, which is itself a
+    consequence of those two rules.</div>
+<h2>De-optimisers</h2><p class='catnote'>These take a real, well-written code shape and rewrite it as a worse one. They look the most like genuine bad code because they ARE genuine bad code -- just applied deliberately.</p>
+<div class="card" id="perf_try_in_loop">
+<h3>perf_try_in_loop<span class="tool ruff">ruff</span></h3>
+<div class="rule">confirmed by: PERF203 (try-except-in-loop)</div>
+<div class="lbl">What it is</div><div class="txt">Putting a <code>try/except</code> inside a loop adds per-iteration overhead; the handler is usually better hoisted outside the loop.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector finds an existing loop and wraps its body in <code>try: &lt;body&gt; except ValueError: pass</code>. It uses <code>ValueError</code> (not <code>Exception</code>) on purpose, so it does not ALSO count as a broad_except.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. If the loop body raises no ValueError, the try is transparent. (Applies only where a loop already exists.)</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def fifth_Power_Sum(n):</div>
+<div>    sm = 0</div>
+<div>    for i in range(1, n + 1):</div>
+<div class="del">        sm = sm + i * i * i * i * i</div>
+<div>    return sm</div></pre><div class="src">mbpp_655</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; perf_try_in_loop</div><pre><div>def fifth_Power_Sum(n):</div>
+<div>    sm = 0</div>
+<div>    for i in range(1, n + 1):</div>
+<div class="add">        try:</div>
+<div class="add">            sm = sm + i * i * i * i * i</div>
+<div class="add">        except ValueError:</div>
+<div class="add">            pass</div>
+<div>    return sm</div></pre><div class="src">mbpp_655__perf_try_in_loop</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def search(arr, n):</div>
+<div>    XOR = 0</div>
+<div>    for i in range(n):</div>
+<div class="del">        XOR = XOR ^ arr[i]</div>
+<div>    return XOR</div></pre><div class="src">mbpp_119</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; perf_try_in_loop</div><pre><div>def search(arr, n):</div>
+<div>    XOR = 0</div>
+<div>    for i in range(n):</div>
+<div class="add">        try:</div>
+<div class="add">            XOR = XOR ^ arr[i]</div>
+<div class="add">        except ValueError:</div>
+<div class="add">            pass</div>
+<div>    return XOR</div></pre><div class="src">mbpp_119__perf_try_in_loop</div></div>
+</div>
+</div>
+<div class="card" id="inefficient_loop">
+<h3>inefficient_loop<span class="tool ruff">ruff</span></h3>
+<div class="rule">confirmed by: PERF401 (manual-list-comprehension)</div>
+<div class="lbl">What it is</div><div class="txt">An inefficient loop: building a list with a manual <code>append</code> loop where a list comprehension would be clearer and faster.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector finds a transforming comprehension <code>xs = [f(t) for t in it]</code> and rewrites it as <code>xs = []</code> then <code>for t in it: xs.append(f(t))</code>.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. It builds the identical list, just the slow way.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def sort_sublists(input_list):</div>
+<div class="del">    result = [sorted(x, key=lambda x: x[0]) for x in input_list]</div>
+<div>    return result</div></pre><div class="src">mbpp_104</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; inefficient_loop</div><pre><div>def sort_sublists(input_list):</div>
+<div class="add">    result = []</div>
+<div class="add">    for x in input_list:</div>
+<div class="add">        result.append(sorted(x, key=lambda x: x[0]))</div>
+<div>    return result</div></pre><div class="src">mbpp_104__inefficient_loop</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def add_K_element(test_list, K):</div>
+<div class="del">    res = [tuple((j + K for j in sub)) for sub in test_list]</div>
+<div>    return res</div></pre><div class="src">mbpp_363</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; inefficient_loop</div><pre><div>def add_K_element(test_list, K):</div>
+<div class="add">    res = []</div>
+<div class="add">    for sub in test_list:</div>
+<div class="add">        res.append(tuple((j + K for j in sub)))</div>
+<div>    return res</div></pre><div class="src">mbpp_363__inefficient_loop</div></div>
+</div>
+</div>
+<div class="card" id="inefficient_copy">
+<h3>inefficient_copy<span class="tool ruff">ruff</span></h3>
+<div class="rule">confirmed by: PERF402 (manual-list-copy)</div>
+<div class="lbl">What it is</div><div class="txt">Copying a list with a manual loop where <code>list(it)</code> or <code>it.copy()</code> would do.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector finds a list copy (<code>[x for x in it]</code>, <code>list(it)</code>, <code>it[:]</code>, or <code>it.copy()</code>) and rewrites it as an empty-list-plus-append loop. A guard (<code>_provably_list</code>) only allows this when <code>it</code> is provably a list, so a dict/set copy is never mis-rewritten.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes -- and the provably-a-list guard is exactly the fix for an earlier bug where a dict copy got turned into a broken list loop.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def extract_unique(test_dict):</div>
+<div class="del">    res = list(sorted({ele for val in test_dict.values() for ele in val}))</div>
+<div>    return res</div></pre><div class="src">mbpp_694</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; inefficient_copy</div><pre><div>def extract_unique(test_dict):</div>
+<div class="add">    res = []</div>
+<div class="add">    for _c in sorted({ele for val in test_dict.values() for ele in val}):</div>
+<div class="add">        res.append(_c)</div>
+<div>    return res</div></pre><div class="src">mbpp_694__inefficient_copy</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def intersection_array(array_nums1, array_nums2):</div>
+<div class="del">    result = list(filter(lambda x: x in array_nums1, array_nums2))</div>
+<div>    return result</div></pre><div class="src">mbpp_249</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; inefficient_copy</div><pre><div>def intersection_array(array_nums1, array_nums2):</div>
+<div class="add">    result = []</div>
+<div class="add">    for _c in filter(lambda x: x in array_nums1, array_nums2):</div>
+<div class="add">        result.append(_c)</div>
+<div>    return result</div></pre><div class="src">mbpp_249__inefficient_copy</div></div>
+</div>
+</div>
+<h2>Extenders</h2><p class='catnote'>These bolt a realistic-looking bad construct onto working code (an extra parameter, a dead import, a copy-pasted function). Natural enough to pass as something a tired programmer might actually write.</p>
+<div class="card" id="mutable_default">
+<h3>mutable_default<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: W0102 (dangerous-default-value)</div>
+<div class="lbl">What it is</div><div class="txt">A function parameter whose default value is a mutable object, e.g. <code>def f(x, cache=[])</code>. Python builds that list ONCE and shares it across every call, so it silently accumulates state between calls -- a classic source of bugs.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector appends a new parameter <code>cache=[]</code> to the function's signature.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. The added parameter is never referenced in the body, so the function computes exactly what it did before.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div class="del">def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; mutable_default</div><pre><div class="add">def closest_num(N, cache=[]):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__mutable_default</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div class="del">def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; mutable_default</div><pre><div class="add">def perimeter(diameter, height, cache=[]):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__mutable_default</div></div>
+</div>
+</div>
+<div class="card" id="broad_except">
+<h3>broad_except<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: W0718 / W0703 (broad-except)</div>
+<div class="lbl">What it is</div><div class="txt">Catching bare <code>Exception</code> swallows every error -- including bugs you never meant to hide -- which makes failures silent and debugging painful.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector wraps the whole body (keeping any docstring outside) in <code>try: &lt;body&gt; except Exception: return None</code>.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes, for our tested code. If the original body raised nothing, the try runs identically. If it WOULD have raised, the clean twin fails its test too -- so the pair stays matched.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div class="del">    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; broad_except</div><pre><div>def closest_num(N):</div>
+<div class="add">    try:</div>
+<div class="add">        return N - 1</div>
+<div class="add">    except Exception:</div>
+<div class="add">        return None</div></pre><div class="src">mbpp_89__broad_except</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div class="del">    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; broad_except</div><pre><div>def perimeter(diameter, height):</div>
+<div class="add">    try:</div>
+<div class="add">        return 2 * (diameter + height)</div>
+<div class="add">    except Exception:</div>
+<div class="add">        return None</div></pre><div class="src">mbpp_112__broad_except</div></div>
+</div>
+</div>
+<div class="card" id="dead_code">
+<h3>dead_code<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: W0611 (unused-import) or W0612 (unused-variable)</div>
+<div class="lbl">What it is</div><div class="txt">Code that is present but has no effect: an <b>unused import</b> or an <b>unused local variable</b>. It clutters the file and misleads readers about what the function actually needs.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector adds one of two forms (it alternates, so the dataset contains both): an unused standard-library import (<code>import os</code>), or an unused local variable assigned from the first parameter (<code>leftover = nums</code>).</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. An unused import has no effect on the output, and the unused variable is assigned but never read.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; dead_code</div><pre><div>def closest_num(N):</div>
+<div class="add">    leftover = N</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__dead_code</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; dead_code</div><pre><div class="add">import os</div>
+<div>def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__dead_code</div></div>
+</div>
+</div>
+<div class="card" id="long_parameter_list">
+<h3>long_parameter_list<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: R0913 (too-many-arguments, &gt;5)</div>
+<div class="lbl">What it is</div><div class="txt">A function with too many parameters is hard to call correctly and usually a sign it is doing too much.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector appends six keyword parameters <code>extra_0=None ... extra_5=None</code>, pushing the count over pylint's limit of five.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. The extra parameters default to None and are never used.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div class="del">def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; long_parameter_list</div><pre><div class="add">def closest_num(N, extra_0=None, extra_1=None, extra_2=None, extra_3=None, extra_4=None, extra_5=None):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__long_parameter_list</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div class="del">def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; long_parameter_list</div><pre><div class="add">def perimeter(diameter, height, extra_0=None, extra_1=None, extra_2=None, extra_3=None, extra_4=None, extra_5=None):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__long_parameter_list</div></div>
+</div>
+</div>
+<div class="card" id="duplicate_code">
+<h3>duplicate_code<span class="tool jscpd">jscpd</span></h3>
+<div class="rule">confirmed by: clone ≥ 5 lines / 25 tokens</div>
+<div class="lbl">What it is</div><div class="txt">Copy-pasted code. Two near-identical blocks mean every future fix has to be made in two places -- and one will be forgotten.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector appends a renamed copy of the whole function (<code>foo</code> plus <code>foo_copy</code>), creating a duplicated block that jscpd detects.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. The copy is a separate, never-called function, so the original behaviour is untouched.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def sort_mixed_list(mixed_list):</div>
+<div>    int_part = sorted([i for i in mixed_list if type(i) is int])</div>
+<div>    str_part = sorted([i for i in mixed_list if type(i) is str])</div>
+<div>    return int_part + str_part</div></pre><div class="src">mbpp_37</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; duplicate_code</div><pre><div>def sort_mixed_list(mixed_list):</div>
+<div>    int_part = sorted([i for i in mixed_list if type(i) is int])</div>
+<div>    str_part = sorted([i for i in mixed_list if type(i) is str])</div>
+<div>    return int_part + str_part</div>
+<div class="add">&nbsp;</div>
+<div class="add">def sort_mixed_list_copy(mixed_list):</div>
+<div class="add">    int_part = sorted([i for i in mixed_list if type(i) is int])</div>
+<div class="add">    str_part = sorted([i for i in mixed_list if type(i) is str])</div>
+<div class="add">    return int_part + str_part</div></pre><div class="src">mbpp_37__duplicate_code</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def max_difference(test_list):</div>
+<div>    temp = [abs(b - a) for a, b in test_list]</div>
+<div>    res = max(temp)</div>
+<div>    return res</div></pre><div class="src">mbpp_63</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; duplicate_code</div><pre><div>def max_difference(test_list):</div>
+<div>    temp = [abs(b - a) for a, b in test_list]</div>
+<div>    res = max(temp)</div>
+<div>    return res</div>
+<div class="add">&nbsp;</div>
+<div class="add">def max_difference_copy(test_list):</div>
+<div class="add">    temp = [abs(b - a) for a, b in test_list]</div>
+<div class="add">    res = max(temp)</div>
+<div class="add">    return res</div></pre><div class="src">mbpp_63__duplicate_code</div></div>
+</div>
+</div>
+<h2>Minimal trip-wires</h2><p class='catnote'>These add the SMALLEST inert construct that trips the detector's rule, while guaranteeing the code still behaves identically. They look synthetic on purpose -- a 'real' version of these smells would be load-bearing, and changing behaviour would break the clean/smelly pair.</p>
+<div class="card" id="deep_nesting">
+<h3>deep_nesting<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: R1702 (too-many-nested-blocks, &gt;5)</div>
+<div class="lbl">What it is</div><div class="txt">Code nested many levels deep (loops inside loops inside ifs...) is hard to follow and hard to test.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector wraps the body in six nested <code>for _n in range(1)</code> loops. Each loop runs exactly once, so the real code still executes a single time -- just buried six levels deep.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. <code>range(1)</code> means every loop iterates once, so the body runs exactly as before.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div class="del">    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; deep_nesting</div><pre><div>def closest_num(N):</div>
+<div class="add">    for _n5 in range(1):</div>
+<div class="add">        for _n4 in range(1):</div>
+<div class="add">            for _n3 in range(1):</div>
+<div class="add">                for _n2 in range(1):</div>
+<div class="add">                    for _n1 in range(1):</div>
+<div class="add">                        for _n0 in range(1):</div>
+<div class="add">                            return N - 1</div></pre><div class="src">mbpp_89__deep_nesting</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div class="del">    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; deep_nesting</div><pre><div>def perimeter(diameter, height):</div>
+<div class="add">    for _n5 in range(1):</div>
+<div class="add">        for _n4 in range(1):</div>
+<div class="add">            for _n3 in range(1):</div>
+<div class="add">                for _n2 in range(1):</div>
+<div class="add">                    for _n1 in range(1):</div>
+<div class="add">                        for _n0 in range(1):</div>
+<div class="add">                            return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__deep_nesting</div></div>
+</div>
+</div>
+<div class="card" id="complex_conditional">
+<h3>complex_conditional<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: R0916 (too-many-boolean-expressions, &gt;5)</div>
+<div class="lbl">What it is</div><div class="txt">A single condition chaining many boolean terms (a tangled compound conditional) is hard to read and easy to get subtly wrong.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector inserts <code>if p and p and p ... (8 times): pass</code> using the first parameter <code>p</code>. Eight terms clears pylint's limit of five.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. The <code>if</code> body is just <code>pass</code> and the condition has no side effects, so nothing changes.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; complex_conditional</div><pre><div>def closest_num(N):</div>
+<div class="add">    if N and N and N and N and N and N and N and N:</div>
+<div class="add">        pass</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__complex_conditional</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; complex_conditional</div><pre><div>def perimeter(diameter, height):</div>
+<div class="add">    if diameter and diameter and diameter and diameter and diameter and diameter and diameter and diameter:</div>
+<div class="add">        pass</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__complex_conditional</div></div>
+</div>
+</div>
+<div class="card" id="long_method">
+<h3>long_method<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: R0915 (too-many-statements, &gt;50)</div>
+<div class="lbl">What it is</div><div class="txt">A function with dozens of statements is hard to understand, review, and test as one unit.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector pads the body with ~55 trivial <code>_acc = _acc + i</code> statements, pushing it past pylint's 50-statement limit.</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. <code>_acc</code> is a throwaway accumulator that the real logic never reads.</span></div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; long_method</div><pre><div>def closest_num(N):</div>
+<div class="add">    _acc = 0</div>
+<div class="add">    _acc = _acc + 1</div>
+<div class="add">    _acc = _acc + 2</div>
+<div class="add">    _acc = _acc + 3</div>
+<div class="add">    _acc = _acc + 4</div>
+<div class="add">    _acc = _acc + 5</div>
+<div class="add">    _acc = _acc + 6</div>
+<div class="add">    _acc = _acc + 7</div>
+<div class="add">    _acc = _acc + 8</div>
+<div class="add">    _acc = _acc + 9</div>
+<div class="add">    _acc = _acc + 10</div>
+<div class="add">    _acc = _acc + 11</div>
+<div class="add">    _acc = _acc + 12</div>
+<div class="add">    _acc = _acc + 13</div>
+<div class="add">    _acc = _acc + 14</div>
+<div class="add">    _acc = _acc + 15</div>
+<div class="add">    _acc = _acc + 16</div>
+<div class="add">    _acc = _acc + 17</div>
+<div class="add">    _acc = _acc + 18</div>
+<div class="add">    _acc = _acc + 19</div>
+<div class="add">    _acc = _acc + 20</div>
+<div class="add">    _acc = _acc + 21</div>
+<div class="add">    _acc = _acc + 22</div>
+<div class="add">    _acc = _acc + 23</div>
+<div class="add">    _acc = _acc + 24</div>
+<div class="add">    _acc = _acc + 25</div>
+<div class="add">    _acc = _acc + 26</div>
+<div class="add">    _acc = _acc + 27</div>
+<div class="add">    _acc = _acc + 28</div>
+<div class="add">    _acc = _acc + 29</div>
+<div class="add">    _acc = _acc + 30</div>
+<div class="add">    _acc = _acc + 31</div>
+<div class="add">    _acc = _acc + 32</div>
+<div class="add">    _acc = _acc + 33</div>
+<div class="add">    _acc = _acc + 34</div>
+<div class="add">    _acc = _acc + 35</div>
+<div class="add">    _acc = _acc + 36</div>
+<div class="add">    _acc = _acc + 37</div>
+<div class="add">    _acc = _acc + 38</div>
+<div class="add">    _acc = _acc + 39</div>
+<div class="add">    _acc = _acc + 40</div>
+<div class="add">    _acc = _acc + 41</div>
+<div class="add">    _acc = _acc + 42</div>
+<div class="add">    _acc = _acc + 43</div>
+<div class="add">    _acc = _acc + 44</div>
+<div class="add">    _acc = _acc + 45</div>
+<div class="add">    _acc = _acc + 46</div>
+<div class="add">    _acc = _acc + 47</div>
+<div class="add">    _acc = _acc + 48</div>
+<div class="add">    _acc = _acc + 49</div>
+<div class="add">    _acc = _acc + 50</div>
+<div class="add">    _acc = _acc + 51</div>
+<div class="add">    _acc = _acc + 52</div>
+<div class="add">    _acc = _acc + 53</div>
+<div class="add">    _acc = _acc + 54</div>
+<div class="add">    _acc = _acc + 55</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__long_method</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; long_method</div><pre><div>def perimeter(diameter, height):</div>
+<div class="add">    _acc = 0</div>
+<div class="add">    _acc = _acc + 1</div>
+<div class="add">    _acc = _acc + 2</div>
+<div class="add">    _acc = _acc + 3</div>
+<div class="add">    _acc = _acc + 4</div>
+<div class="add">    _acc = _acc + 5</div>
+<div class="add">    _acc = _acc + 6</div>
+<div class="add">    _acc = _acc + 7</div>
+<div class="add">    _acc = _acc + 8</div>
+<div class="add">    _acc = _acc + 9</div>
+<div class="add">    _acc = _acc + 10</div>
+<div class="add">    _acc = _acc + 11</div>
+<div class="add">    _acc = _acc + 12</div>
+<div class="add">    _acc = _acc + 13</div>
+<div class="add">    _acc = _acc + 14</div>
+<div class="add">    _acc = _acc + 15</div>
+<div class="add">    _acc = _acc + 16</div>
+<div class="add">    _acc = _acc + 17</div>
+<div class="add">    _acc = _acc + 18</div>
+<div class="add">    _acc = _acc + 19</div>
+<div class="add">    _acc = _acc + 20</div>
+<div class="add">    _acc = _acc + 21</div>
+<div class="add">    _acc = _acc + 22</div>
+<div class="add">    _acc = _acc + 23</div>
+<div class="add">    _acc = _acc + 24</div>
+<div class="add">    _acc = _acc + 25</div>
+<div class="add">    _acc = _acc + 26</div>
+<div class="add">    _acc = _acc + 27</div>
+<div class="add">    _acc = _acc + 28</div>
+<div class="add">    _acc = _acc + 29</div>
+<div class="add">    _acc = _acc + 30</div>
+<div class="add">    _acc = _acc + 31</div>
+<div class="add">    _acc = _acc + 32</div>
+<div class="add">    _acc = _acc + 33</div>
+<div class="add">    _acc = _acc + 34</div>
+<div class="add">    _acc = _acc + 35</div>
+<div class="add">    _acc = _acc + 36</div>
+<div class="add">    _acc = _acc + 37</div>
+<div class="add">    _acc = _acc + 38</div>
+<div class="add">    _acc = _acc + 39</div>
+<div class="add">    _acc = _acc + 40</div>
+<div class="add">    _acc = _acc + 41</div>
+<div class="add">    _acc = _acc + 42</div>
+<div class="add">    _acc = _acc + 43</div>
+<div class="add">    _acc = _acc + 44</div>
+<div class="add">    _acc = _acc + 45</div>
+<div class="add">    _acc = _acc + 46</div>
+<div class="add">    _acc = _acc + 47</div>
+<div class="add">    _acc = _acc + 48</div>
+<div class="add">    _acc = _acc + 49</div>
+<div class="add">    _acc = _acc + 50</div>
+<div class="add">    _acc = _acc + 51</div>
+<div class="add">    _acc = _acc + 52</div>
+<div class="add">    _acc = _acc + 53</div>
+<div class="add">    _acc = _acc + 54</div>
+<div class="add">    _acc = _acc + 55</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__long_method</div></div>
+</div>
+</div>
+<div class="card" id="magic_number">
+<h3>magic_number<span class="tool pylint">pylint</span></h3>
+<div class="rule">confirmed by: R2004 (magic-value-comparison)</div>
+<div class="lbl">What it is</div><div class="txt">An unexplained literal number in the logic -- the reader has no idea what it means or why it is that value.</div>
+<div class="lbl">How it is injected</div><div class="txt">The injector inserts <code>_ = p == 42</code> (comparing the first parameter against the bare literal 42).</div>
+<div class="lbl">Behaviour preserved?</div><div class="txt"><span class="keep">Yes. The comparison's result is discarded into <code>_</code>.</span></div>
+<div class="caveat"><b>Worth knowing:</b> This is the one that looks most like dead code, and that is unavoidable. pylint's rule R2004 only fires on a magic number used in a COMPARISON (it would ignore <code>price * 1.08</code>), so the injector must produce a comparison. And a REAL magic number is load-bearing -- it sits inside the logic and drives the output -- so making it real would change behaviour and break the clean/smelly pair. The only way to be both detector-confirmed AND behaviour-preserving is an inert comparison, which necessarily reads as dead code. It is correctly labelled; it just looks synthetic by design.</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def closest_num(N):</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; magic_number</div><pre><div>def closest_num(N):</div>
+<div class="add">    _ = N == 42</div>
+<div>    return N - 1</div></pre><div class="src">mbpp_89__magic_number</div></div>
+</div>
+<div class="ex">
+<div class="col clean"><div class="head">clean</div><pre><div>def perimeter(diameter, height):</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112</div></div>
+<div class="col smelly"><div class="head">smelly &mdash; magic_number</div><pre><div>def perimeter(diameter, height):</div>
+<div class="add">    _ = diameter == 42</div>
+<div>    return 2 * (diameter + height)</div></pre><div class="src">mbpp_112__magic_number</div></div>
+</div>
+</div>
+</div></body></html>

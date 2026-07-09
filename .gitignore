@@ -20,8 +20,14 @@ __pycache__/
 node_modules/
 .venv/
 
-# generated HTML reports (regenerate with the view_* / report scripts)
+# generated HTML reports: ignored by default (regenerate with the view_* /
+# report scripts), but the four rendered visualisations are kept in the repo
+# so they can be viewed without running anything.
 *.html
+!smell_injection/samples_report.html
+!smell_injection/smell_guide.html
+!eval_tool/panel_report.html
+!arc_qwen/generations_report.html
 
 # build/backup artifacts
 *.zip
