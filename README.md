@@ -7,6 +7,17 @@ The work has two parts:
 1. **A labelled benchmark** of clean vs. smelly Python code — 1,300 matched examples across 12 code smells.
 2. **An evaluation tool** that scores code on three dimensions — structural quality, correctness, and generation cost — using a panel of independent measures.
 
+## Live visualizations
+
+The rendered reports are published with GitHub Pages — **[browse them here →](https://kaiyi03.github.io/Code-Smells/)**:
+
+- [Smell guide](https://kaiyi03.github.io/Code-Smells/smell_injection/smell_guide.html) — the 12 smells, how each is injected, with real clean-vs-smelly examples
+- [Detection-strength report](https://kaiyi03.github.io/Code-Smells/eval_tool/panel_report.html) — how strongly each measure separates clean code from its smelly twin
+- [Qwen generations](https://kaiyi03.github.io/Code-Smells/arc_qwen/generations_report.html) — the model's solutions next to the canonical answers
+- [Sample browser](https://kaiyi03.github.io/Code-Smells/smell_injection/samples_report.html) — every clean/smelly pair, side by side
+
+The same `.html` files live in the repo, but GitHub shows them as source; the links above open them rendered.
+
 ## Why
 
 Metrics like BLEU, cyclomatic complexity, and CodeBLEU are routinely used to judge generated code, but it is rarely clear what each one actually captures. I build a controlled benchmark where I know exactly which smell is present, then test which measures detect it. The early result: **no single measure catches every smell, but the measures are complementary**, so a panel works where any one alone fails.
