@@ -23,6 +23,12 @@ deep_nesting,maintainability,136,1000,0.388,4.029,,100.000,34.688
 deep_nesting,halstead_volume,136,1000,0.000,4.627,,0.000,1185.296
 deep_nesting,halstead_difficulty,136,1000,0.000,5.000,,0.000,8.457
 deep_nesting,halstead_effort,136,1000,0.000,4.337,,0.000,10228.844
+duplicate_code,sloc,274,1000,1.755,0.909,,8.000,31.500
+duplicate_code,cyclomatic,274,1000,1.818,0.738,,2.000,4.000
+duplicate_code,maintainability,274,1000,2.512,1.007,,100.000,71.341
+duplicate_code,halstead_volume,274,1000,1.046,0.651,,0.000,25.266
+duplicate_code,halstead_difficulty,274,1000,0.076,0.657,,0.000,0.667
+duplicate_code,halstead_effort,274,1000,0.573,0.519,,0.000,15.673
 inefficient_copy,sloc,2,1000,5.000,1.322,,8.000,58.500
 inefficient_copy,cyclomatic,2,1000,5.000,2.810,,2.000,10.500
 inefficient_copy,maintainability,2,1000,0.208,1.132,,100.000,74.589
