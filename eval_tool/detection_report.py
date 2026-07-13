@@ -27,22 +27,25 @@ STRUCT = ["sloc", "cyclomatic", "maintainability", "halstead_volume",
           "halstead_difficulty", "halstead_effort"]
 SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu"]
 
-# smell -> (display order group, verdict, note) -- the trust summary, ordered
+# smell -> (structural verdict, similarity verdict, what to rely on) -- the trust summary.
+# structural = the reference-free radon measures; similarity = the reference-based
+# BLEU/CodeBLEU family (validated on the injected pairs, which have a clean twin, so
+# every injected smell diverges from its clean reference and the family registers it).
 TRUST = [
-    ("long_method", "Strong", "maintainability, cyclomatic, SLOC, Halstead"),
-    ("deep_nesting", "Strong", "all structural measures"),
-    ("complex_conditional", "Strong", "all structural measures"),
-    ("inefficient_copy", "Moderate (co-occurrence)", "cyclomatic, maintainability"),
-    ("perf_try_in_loop", "Moderate (co-occurrence)", "cyclomatic"),
-    ("magic_number", "Moderate (co-occurrence)", "cyclomatic, maintainability"),
-    ("broad_except", "Moderate (co-occurrence)", "maintainability"),
-    ("inefficient_loop", "Moderate (co-occurrence)", "cyclomatic"),
-    ("long_parameter_list", "Weak", "none reliable"),
-    ("dead_code", "Blind", "the smell detector only"),
-    ("mutable_default", "Blind", "the smell detector only"),
-    ("duplicate_code", "Blind (size artefact)", "jscpd only"),
+    ("long_method",         "Strong",        "Strong", "any structural measure"),
+    ("deep_nesting",        "Strong",        "Strong", "cyclomatic, SLOC"),
+    ("complex_conditional", "Strong",        "Strong", "cyclomatic"),
+    ("broad_except",        "Co-occurrence", "Strong", "CodeBLEU / BLEU; the detector"),
+    ("magic_number",        "Co-occurrence", "Strong", "CodeBLEU; the detector"),
+    ("inefficient_copy",    "Co-occurrence", "Strong", "CodeBLEU; the detector (Ruff)"),
+    ("inefficient_loop",    "Co-occurrence", "Strong", "CodeBLEU; the detector (Ruff)"),
+    ("perf_try_in_loop",    "Co-occurrence", "Strong", "CodeBLEU / BLEU; the detector (Ruff)"),
+    ("long_parameter_list", "Blind",         "Strong", "CodeBLEU; the detector"),
+    ("dead_code",           "Blind",         "Strong", "CodeBLEU / ROUGE-L; the detector"),
+    ("mutable_default",     "Blind",         "Strong", "BLEU / CodeBLEU; the detector"),
+    ("duplicate_code",      "Blind (size)",  "Strong", "jscpd; CodeBLEU vs. reference"),
 ]
-ORDER = [s for s, _, _ in TRUST]
+ORDER = [t[0] for t in TRUST]
 
 
 def load():
@@ -123,6 +126,7 @@ def main():
             background:rgba(255,255,255,.62);border-radius:3px;padding:1px 6px}
  code{background:#f0f0f2;padding:1px 5px;border-radius:4px;font-size:12px}
  .v-strong{color:#15803d;font-weight:600} .v-mod{color:#b45309} .v-blind{color:#b91c1c}
+ .th-sub{font-weight:400;color:#8a8a8a;font-size:10.5px}
  .scroll{overflow-x:auto}
 </style></head><body><div class="wrap">
 <h1>Detection strength &mdash; injected vs. real</h1>
@@ -167,22 +171,42 @@ capped at 5), so they are directly comparable. Deeper shade = stronger separatio
                 p.append(f"<tr><td><code>{s}</code></td><td>{c.get('n_tested')}</td><td>{pct}</td></tr>")
         p.append("</table>")
 
-    # 4. trust summary
-    p.append("<h2>4. Which measures to trust</h2>")
-    p.append('<p class="note">The bottom line, from the two sources together.</p>')
-    p.append("<table><tr><th>smell</th><th>structural detectability</th><th>use</th></tr>")
-    cls = {"Strong": "v-strong", "Weak": "v-mod"}
-    for s, verdict, use in TRUST:
-        vc = "v-strong" if verdict == "Strong" else ("v-blind" if verdict.startswith("Blind") else "v-mod")
+    # 4. trust summary -- by measure family
+    p.append("<h2>4. Which measures to trust &mdash; by family</h2>")
+    p.append('<p class="note">Detectability depends on the measure <b>family</b>. A '
+             '<span class="v-blind">Blind</span> below means <i>that family</i> cannot see the smell '
+             '&mdash; not that nothing can. Read the two verdict columns together.</p>')
+    p.append('<div class="scroll"><table><tr><th>smell</th>'
+             '<th style="text-align:left">structural<br><span class="th-sub">reference-free</span></th>'
+             '<th style="text-align:left">similarity<br><span class="th-sub">vs. a reference</span></th>'
+             '<th style="text-align:left">what to rely on</th></tr>')
+
+    def vclass(v):
+        if v == "Strong":
+            return "v-strong"
+        if v.startswith("Blind"):
+            return "v-blind"
+        return "v-mod"
+
+    for s, structv, simv, use in TRUST:
         p.append(f'<tr><td><code>{s}</code></td>'
-                 f'<td style="text-align:left" class="{vc}">{verdict}</td>'
+                 f'<td style="text-align:left" class="{vclass(structv)}">{structv}</td>'
+                 f'<td style="text-align:left" class="{vclass(simv)}">{simv}</td>'
                  f'<td style="text-align:left">{use}</td></tr>')
-    p.append("</table>")
-    p.append('<p class="note">Maintainability is the most dependable single structural measure. The '
-             'structural measures reliably catch the smells that make code bigger or more branched; for '
-             'several others the real signal is co-occurrence (correlated size/complexity), not the smell '
-             'itself; and dead code, mutable defaults, long parameter lists and duplication cannot be '
-             'seen by structure at all and must come from the detectors.</p>')
+    p.append("</table></div>")
+    p.append('<p class="note">The two families do different jobs. The <b>reference-free structural</b> '
+             'measures locate specific smells but only bulky or branchy ones; for the middle group the '
+             'signal is really co-occurring size/complexity, and four smells are structurally invisible. '
+             'The <b>reference-based similarity</b> measures (CodeBLEU, BLEU and the rest) register all '
+             'twelve on the injected benchmark &mdash; including every structural blind spot &mdash; but '
+             'they need a clean reference to compare against, and they report that the code <i>diverged</i> '
+             'from that reference, not <i>which</i> smell it is. So they cover everything on the injected '
+             'pairs (which have a clean twin); on real free-generated code, which has no clean twin, they '
+             'cannot be applied the same way (a stated limitation). The reliable per-smell catch-all in '
+             'deployment is the <b>detector itself</b> (Pylint, Ruff, jscpd), which defines all twelve by '
+             'construction and is kept out of this scoring only to avoid grading a detector on its own '
+             'labels. Net: no single reference-free measure covers all twelve &mdash; the reason the tool '
+             'is a panel &mdash; but no smell is undetectable.</p>')
 
     p.append("</div></body></html>")
     with open(OUT, "w", encoding="utf-8") as f:
