@@ -1,22 +1,24 @@
 """
-Mine real duplicate_code examples -- the one smell single-method mining misses.
+Mine real duplicate_code examples as CONCATENATED CLONE-PAIRS.
 
-duplicate_code is an ACROSS-unit clone, so a single method almost never contains
-one. But real methods ARE clones of *other* methods (copy-pasted helpers, near
--identical handlers). We dump a large batch of real methods from the CodeSmellData
-2.0 raw corpus into one folder, run jscpd across the whole folder, and keep the
-methods jscpd flags as clones of another method -> real duplicate_code positives.
+duplicate_code is duplication WITHIN a code unit, and the injector builds it that
+way -- it appends a renamed copy of a function, so one snippet holds both copies.
+To compare like with like, we build the real examples the same way: run jscpd
+across a batch of real methods to find genuine clone pairs (A near-identical to B),
+then concatenate each pair into one snippet. That gives a real "unit that contains
+a duplicate", matching the injected shape.
 
-These get appended to realworld_smelly.jsonl so run_realworld.py picks them up.
-(Run this AFTER build_realworld_smelly.py; it is idempotent -- it strips any prior
-duplicate_code rows before appending.)
+The point of doing this is honesty, not a detection number: a duplicated block has
+the same structure as the original, so any structural "signal" for duplicate_code
+-- injected or real -- is only the SIZE of the second copy, not the duplication.
+The real concatenated pairs should reproduce the injected size-driven signal,
+confirming that a clone detector (jscpd), not the structural measures, is what
+actually finds duplication.
 
-Expected finding: a cloned method, viewed on its own, is structurally ordinary, so
-the structural measures should show ~0 separation -- confirming duplicate_code is a
-clone-detector smell that structural measures cannot see on a single unit, and that
-the injected structural signal (which doubles the snippet) is an artefact.
+Appends duplicate_code rows to realworld_smelly.jsonl (idempotent: strips prior
+duplicate_code rows first). Run AFTER the other mining scripts.
 
-Run:  python smell_injection/build_realworld_dup.py [--sample 3000]
+Run:  python smell_injection/build_realworld_dup.py [--sample 3500 --target 250]
 """
 
 import argparse
@@ -54,16 +56,17 @@ MIN_LINES = 3
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sample", type=int, default=3000, help="methods to scan together with jscpd")
+    ap.add_argument("--sample", type=int, default=3500, help="methods to scan together with jscpd")
+    ap.add_argument("--target", type=int, default=250, help="concatenated clone-pairs to keep")
     args = ap.parse_args()
     if not JSCPD:
-        raise SystemExit("jscpd not found (npm install -g jscpd, or local node_modules).")
+        raise SystemExit("jscpd not found.")
 
     raw = json.load(open(RAW, encoding="utf-8"))
     order = list(range(len(raw)))
     random.Random(2).shuffle(order)
     tmp = tempfile.mkdtemp()
-    fname_to_code = {}
+    code_of = {}
     try:
         n = 0
         for idx in order:
@@ -79,9 +82,9 @@ def main():
             fn = f"m{idx}.py"
             with open(os.path.join(tmp, fn), "w", encoding="utf-8") as f:
                 f.write(code)
-            fname_to_code[fn] = (idx, code)
+            code_of[fn] = code
             n += 1
-        print(f"scanning {n} real methods together with jscpd (min {DUP_MIN_LINES} lines) ...")
+        print(f"scanning {n} real methods with jscpd for clone pairs ...")
 
         out = os.path.join(tmp, "report")
         cmd = [JSCPD, tmp, "--min-lines", str(DUP_MIN_LINES), "--min-tokens", str(DUP_MIN_TOKENS),
@@ -89,27 +92,32 @@ def main():
         if os.name == "nt":
             cmd = ["cmd", "/c", *cmd]
         subprocess.run(cmd, capture_output=True, text=True)
+
+        pairs, seen = [], set()
         report = os.path.join(out, "jscpd-report.json")
-        cloned = set()
         if os.path.exists(report):
-            data = json.load(open(report, encoding="utf-8"))
-            for dup in data.get("duplicates", []):
-                for side in ("firstFile", "secondFile"):
-                    name = os.path.basename((dup.get(side) or {}).get("name", ""))
-                    if name in fname_to_code:
-                        cloned.add(name)
-        print(f"jscpd flagged {len(cloned)} methods as clones of another method")
+            for dup in json.load(open(report, encoding="utf-8")).get("duplicates", []):
+                a = os.path.basename((dup.get("firstFile") or {}).get("name", ""))
+                b = os.path.basename((dup.get("secondFile") or {}).get("name", ""))
+                key = frozenset((a, b))
+                if a in code_of and b in code_of and a != b and key not in seen:
+                    seen.add(key)
+                    pairs.append((a, b))
+                    if len(pairs) >= args.target:
+                        break
+        print(f"jscpd found {len(pairs)} distinct clone pairs")
 
         recs = []
-        for fn in cloned:
-            idx, code = fname_to_code[fn]
-            recs.append({"id": f"cs2dup_{idx}", "source": "codesmelldata2_mined",
-                         "smell": "duplicate_code", "label": "yes", "code": code,
-                         "label_origin": "jscpd", "meta": {"repo": raw[idx].get("repo")}})
+        for a, b in pairs:
+            # concatenate the two clones into one snippet -- matches the injector's
+            # "function + its copy" shape.
+            snippet = code_of[a].rstrip() + "\n\n\n" + code_of[b].rstrip() + "\n"
+            recs.append({"id": f"cs2dup_{a[1:-3]}_{b[1:-3]}", "source": "codesmelldata2_mined",
+                         "smell": "duplicate_code", "label": "yes", "code": snippet,
+                         "label_origin": "jscpd", "meta": {"kind": "concatenated clone-pair"}})
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    # append to realworld_smelly.jsonl, idempotently (strip prior duplicate_code rows)
     existing = []
     if os.path.exists(SMELLY):
         existing = [json.loads(l) for l in open(SMELLY, encoding="utf-8") if l.strip()
@@ -117,7 +125,7 @@ def main():
     with open(SMELLY, "w", encoding="utf-8") as f:
         for r in existing + recs:
             f.write(json.dumps(r) + "\n")
-    print(f"wrote {len(recs)} duplicate_code rows into {os.path.basename(SMELLY)} "
+    print(f"wrote {len(recs)} concatenated duplicate_code snippets "
           f"({len(existing) + len(recs)} total mined rows)")
 
 

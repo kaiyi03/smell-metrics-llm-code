@@ -205,8 +205,12 @@ def write_html(smells, smelly, clean_pool, pysmell_clean, smelly_v, clean_v, pys
 naturally-occurring code: methods Pylint flagged with each smell (CodeSmellData
 1.0/2.0, PySmell) versus a pool of {len(clean_pool)} real <b>clean</b> methods from
 the same GitHub corpus. Detection strength = unpaired Cohen&rsquo;s d (smelly vs
-clean), shown against the injected (paired) value. Similarity measures need a
-clean twin, so they do not apply to real code.</p>""")
+clean), shown against the injected value (now the same statistic). The similarity
+measures need a clean reference, so they do not apply to real code. duplicate_code
+appears as real clone-pairs concatenated into one snippet -- the same doubled shape
+the injector builds -- so its structural "signal" on both sources is only the size
+of the second copy, not the duplication itself; a clone detector (jscpd), not the
+structural measures, is what actually finds it.</p>""")
 
     # headline matrix: real d per smell x measure
     p.append("<h2>Real detection strength (smell &times; measure)</h2>")

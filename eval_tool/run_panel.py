@@ -86,30 +86,40 @@ D_CAP = 5.0   # display ceiling for Cohen's d (a perfectly consistent shift is "
 def paired_stats(clean_vals, smelly_vals, worse):
     """Summarise what the smell did to one measure across the pairs.
 
-    Returns n, hit_rate, delta_median, delta_mean, cohen_d where cohen_d is the
-    paired effect size (mean change / spread of the change), oriented so that a
-    POSITIVE value always means 'moved the worse way'. It is the common currency
-    that lets us compare measures on different natural scales: ~0 = no signal,
-    0.8 = large, >2 = very strong separation. A dead-consistent shift (zero
-    spread) is capped at +/-D_CAP instead of running to infinity."""
-    deltas, hits = [], 0
+    Returns n, hit_rate, delta_median, delta_mean, cohen_d. hit_rate is the paired
+    direction test -- the fraction of pairs where the smell moved the measure the
+    worse way (the scope's "rank the clean version above its smelly counterpart in
+    matched pairs"). cohen_d is the UNPAIRED effect size: the shift in means
+    standardised by how much the measure naturally VARIES (pooled std), oriented so
+    a POSITIVE value means 'moved the worse way', capped at +/-D_CAP. ~0 = no
+    signal, 0.8 = large, >2 = very strong separation.
+
+    Why not the paired form (mean change / spread OF THE CHANGE)? Because an
+    injector that adds a CONSTANT shift -- dead code and magic number each add one
+    fixed line -- drives the within-pair spread to ~0, which saturated the paired d
+    to the cap and reported a trivial one-line change as a perfect detector.
+    Standardising by natural variation does not saturate, and it is the same
+    statistic the real-world layer uses, so injected and real detection strengths
+    become directly comparable."""
+    cs, ss, hits = [], [], 0
     for c, s in zip(clean_vals, smelly_vals):
         if c is None or s is None:
             continue
-        d = s - c
-        deltas.append(d)
-        if (worse == "up" and d > 0) or (worse == "down" and d < 0):
+        cs.append(c)
+        ss.append(s)
+        if (worse == "up" and s - c > 0) or (worse == "down" and s - c < 0):
             hits += 1
-    n = len(deltas)
+    n = len(cs)
     if n == 0:
         return 0, float("nan"), float("nan"), float("nan"), float("nan")
-    arr = np.asarray(deltas, dtype=float)
-    mean = float(arr.mean())
-    sd = float(arr.std(ddof=1)) if n > 1 else 0.0
-    if sd == 0:
-        dz = 0.0 if mean == 0 else np.sign(mean) * D_CAP
+    ca, sa = np.asarray(cs, dtype=float), np.asarray(ss, dtype=float)
+    deltas = sa - ca
+    mean = float(deltas.mean())
+    pooled = float(np.sqrt((ca.std(ddof=1) ** 2 + sa.std(ddof=1) ** 2) / 2)) if n > 1 else 0.0
+    if pooled == 0:
+        dz = 0.0 if mean == 0 else float(np.sign(mean)) * D_CAP
     else:
-        dz = mean / sd
+        dz = mean / pooled
     dz = dz if worse == "up" else -dz                       # positive = worse
     dz = max(-D_CAP, min(D_CAP, dz))
     return n, hits / n, float(np.median(deltas)), mean, dz

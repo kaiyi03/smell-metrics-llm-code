@@ -26,8 +26,7 @@ node_modules/
 *.html
 !smell_injection/samples_report.html
 !smell_injection/smell_guide.html
-!eval_tool/panel_report.html
-!eval_tool/realworld_report.html
+!eval_tool/detection_report.html
 !arc_qwen/generations_report.html
 !arc_qwen/evaluation_report.html
 
