@@ -13,6 +13,7 @@
 !/smell_injection
 !/eval_tool
 !/arc_qwen
+!/dashboard
 
 # Within the allowed folders, still exclude generated / heavy / third-party bits:
 __pycache__/

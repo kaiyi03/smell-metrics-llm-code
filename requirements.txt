@@ -7,6 +7,7 @@ datasets
 radon
 pylint
 ruff
+cognitive_complexity          # SonarSource cognitive-complexity measure
 
 # --- similarity measures ---
 sacrebleu
@@ -15,6 +16,9 @@ codebleu
 tree-sitter
 tree-sitter-python
 nltk
+
+# --- interactive dashboard (local web app) ---
+flask
 
 # --- model generation (ARC GPU phase) ---
 transformers

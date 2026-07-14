@@ -21,12 +21,20 @@ Every measure returns a float, or None if it can't be computed (e.g. code that
 won't parse). None-valued results are skipped in the stats -- never counted as 0.
 """
 
+import ast
+import difflib
+import textwrap
 from dataclasses import dataclass
 from typing import Callable
 
 from radon.complexity import cc_visit
 from radon.metrics import h_visit, mi_visit
 from radon.raw import analyze
+
+try:                                       # cognitive complexity (SonarSource algorithm)
+    from cognitive_complexity.api import get_cognitive_complexity
+except Exception:                          # keep the panel importable without the lib
+    get_cognitive_complexity = None
 
 
 @dataclass
@@ -71,6 +79,44 @@ def _halstead_difficulty(code):
 def _halstead_effort(code):
     return h_visit(code).total.effort             # volume x difficulty
 
+def _cognitive(code):
+    """SonarSource cognitive complexity -- like cyclomatic, but it adds a nesting
+    penalty so deeply nested branches cost more than flat ones. Summed over every
+    function in the snippet; a module with no function is wrapped so its top-level
+    control flow still counts."""
+    if get_cognitive_complexity is None:
+        return None
+    tree = ast.parse(code)
+    fns = [n for n in ast.walk(tree)
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    if fns:
+        return float(sum(get_cognitive_complexity(fn) for fn in fns))
+    wrapped = ast.parse("def _m():\n" + textwrap.indent(code, "    "))
+    return float(get_cognitive_complexity(wrapped.body[0]))
+
+def _comment_density(code):
+    """Comment-to-code ratio: '#' comment lines per 100 source lines (radon raw
+    metrics). A documentation signal -- it barely moves for the injected smells,
+    which don't touch comments, but profiles how well real / generated code is
+    commented."""
+    m = analyze(code)
+    return 100.0 * m.comments / m.sloc if m.sloc else 0.0
+
+def _api_calls(code):
+    """Function / API usage: how many DISTINCT functions or methods the code calls
+    (AST call expressions, by callee name). A usage profile -- does the code lean on
+    library calls or inline everything -- rather than a smell detector."""
+    tree = ast.parse(code)
+    names = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call):
+            f = n.func
+            if isinstance(f, ast.Name):
+                names.add(f.id)
+            elif isinstance(f, ast.Attribute):
+                names.add(f.attr)
+    return float(len(names))
+
 
 STRUCTURAL = [
     Measure("sloc",                "structural", "up",   _safe(_sloc),
@@ -85,6 +131,12 @@ STRUCTURAL = [
             False, "Halstead difficulty -- reading/writing effort"),
     Measure("halstead_effort",     "structural", "up",   _safe(_halstead_effort),
             False, "Halstead effort -- volume x difficulty"),
+    Measure("cognitive",           "structural", "up",   _safe(_cognitive),
+            False, "cognitive complexity -- cyclomatic plus a nesting penalty"),
+    Measure("comment_density",     "structural", "down", _safe(_comment_density),
+            False, "comment lines per 100 source lines (documentation profile)"),
+    Measure("api_calls",           "structural", "down", _safe(_api_calls),
+            False, "distinct functions / APIs called (usage profile, not a smell)"),
 ]
 
 
@@ -133,6 +185,31 @@ def _codebleu(code, ref):
 def _meteor(code, ref):
     return single_meteor_score(_word.findall(ref), _word.findall(code)) * 100
 
+def _ast_seq(code):
+    """Pre-order (depth-first) sequence of AST node types -- the code's structural
+    skeleton, with identifiers and literal values dropped."""
+    seq = []
+
+    def visit(node):
+        seq.append(type(node).__name__)
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    visit(ast.parse(code))
+    return seq
+
+def _ast_similarity(code, ref):
+    """Structure-aware similarity: how much the candidate's AST skeleton matches the
+    reference's. Both are flattened to their pre-order node-type sequences (identifiers
+    and literals ignored), then compared with difflib's longest-matching-blocks ratio.
+    100 = identical structure; lower = more structural change. Complements the
+    token-based measures, which a rename or reformat can fool but a real structural
+    change cannot."""
+    a, b = _ast_seq(code), _ast_seq(ref)
+    if not a and not b:
+        return 100.0
+    return 100.0 * difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+
 
 SIMILARITY = [
     Measure("bleu",     "similarity", "down", _safe(_bleu),     True,
@@ -145,6 +222,8 @@ SIMILARITY = [
             "METEOR: unigram match with stems/synonyms + word-order penalty"),
     Measure("codebleu", "similarity", "down", _safe(_codebleu), True,
             "CodeBLEU: code-aware, includes AST + dataflow match"),
+    Measure("ast_similarity", "similarity", "down", _safe(_ast_similarity), True,
+            "AST skeleton similarity (structure-aware, identifiers ignored)"),
 ]
 
 

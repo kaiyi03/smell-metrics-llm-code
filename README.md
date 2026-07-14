@@ -12,7 +12,8 @@ The work has two parts:
 The rendered reports are published with GitHub Pages — **[browse them here →](https://kaiyi03.github.io/Code-Smells/)**:
 
 - [Smell guide](https://kaiyi03.github.io/Code-Smells/smell_injection/smell_guide.html) — the 12 smells, how each is injected, with real clean-vs-smelly examples
-- [Detection-strength report](https://kaiyi03.github.io/Code-Smells/eval_tool/panel_report.html) — how strongly each measure separates clean code from its smelly twin
+- [Detection-strength report](https://kaiyi03.github.io/Code-Smells/eval_tool/detection_report.html) — how strongly each measure separates smelly from clean code, on the injected pairs and on real code side by side
+- [Qwen evaluation](https://kaiyi03.github.io/Code-Smells/arc_qwen/evaluation_report.html) — the evaluation tool applied to the model's generated code
 - [Qwen generations](https://kaiyi03.github.io/Code-Smells/arc_qwen/generations_report.html) — the model's solutions next to the canonical answers
 - [Sample browser](https://kaiyi03.github.io/Code-Smells/smell_injection/samples_report.html) — every clean/smelly pair, side by side
 
@@ -34,10 +35,13 @@ smell_injection/       the benchmark: inject one smell into clean code, verify w
 eval_tool/             the evaluation tool: a panel of independent measures
   measures.py            the measures (structural + similarity families)
   run_panel.py           runs the panel over the benchmark, writes results + report
-  report.py              renders the colour-coded HTML report
+  run_realworld.py       runs the structural measures on real labelled code (second source)
+  detection_report.py    merges injected + real detection strength into one report
   correctness.py         runs each function's tests in a sandbox (the correctness dimension)
   panel_results.csv      per (smell, measure) results
-  correctness_results.csv
+
+dashboard/             the interactive evaluation dashboard (local Flask app)
+  app.py                 paste code (+ optional reference/tests) -> smells, measures, correctness
 
 arc_qwen/              generating and scoring a model's code (Qwen2.5-Coder)
   generate.py            loads the model, generates solutions for the benchmark tasks
@@ -60,11 +64,19 @@ I treat the detectors' output as an **operational definition** of each smell, no
 
 Given a piece of code, the tool computes a panel of independent measures:
 
-- **Structural** (reference-free): lines of code, cyclomatic complexity, maintainability index, Halstead volume/difficulty/effort — from Radon.
-- **Similarity** (reference-based): BLEU, chrF, ROUGE-L, METEOR, CodeBLEU, against a correct reference.
+- **Structural** (reference-free): lines of code, cyclomatic complexity, cognitive complexity, maintainability index, Halstead volume/difficulty/effort (from Radon), plus comment-density and function/API-usage profiles.
+- **Similarity** (reference-based): BLEU, chrF, ROUGE-L, METEOR, CodeBLEU, and AST-skeleton similarity, against a correct reference.
 - **Correctness** (execution): the function is run against its real test cases.
 
-To compare measures that live on different scales, I compute a single **detection-strength score** — a standardised effect size for how cleanly each measure separates smelly code from its clean twin (0 = blind, ~1 = clear, 5 = capped, i.e. essentially perfect). Concretely this is **Cohen's d** — the mean clean-to-smelly change divided by its standard deviation, capped at 5. `run_panel.py` writes a colour-coded HTML report plus the results CSV. 
+To compare measures that live on different scales, I compute a single **detection-strength score** — a standardised effect size for how cleanly each measure separates smelly code from its clean twin (0 = blind, ~1 = clear, 5 = capped, i.e. essentially perfect). Concretely this is **Cohen's d** — the gap between the clean and smelly means divided by the pooled standard deviation (how much the measure naturally varies), capped at 5. The same statistic is computed on real labelled code, so the injected and real detection strengths are directly comparable. `run_panel.py` writes the results CSV; `run_realworld.py` adds the real-code side; `detection_report.py` merges both into one colour-coded report. 
+
+## Interactive dashboard
+
+`dashboard/app.py` is a small local web app for evaluating a single snippet on demand. Paste code — optionally a reference solution and a test block — and it runs the same panel used on the benchmark: the smell detectors, the structural measures, similarity against the reference, and correctness against the tests. It imports the exact same measures as the offline tool, so the numbers match.
+
+```bash
+.venv/Scripts/python dashboard/app.py      # then open http://127.0.0.1:5000
+```
 
 ## Model generation and scoring
 
@@ -99,7 +111,7 @@ The clean reference code comes from MBPP, HumanEval, and CodeSearchNet (all perm
 
 ## Status and next steps
 
-Done: the benchmark, the evaluation tool (structural + similarity + correctness), and model generation. Next: the model-based measures (perplexity, CodeBERTScore, BERTScore) and a dashboard-style interface for uploading and scoring code.
+Done: the benchmark, the evaluation tool (structural + similarity + correctness), model generation, and an interactive dashboard for scoring code on demand. Next: a runtime-performance measure (executed under controlled workloads, so timing is meaningful rather than noise) and the model-based measures (perplexity, CodeBERTScore, BERTScore) on the ARC GPU cluster.
 
 ## Acknowledgements
 

@@ -23,9 +23,9 @@ REAL = os.path.join(HERE, "realworld_results.csv")
 CORR = os.path.join(HERE, "correctness_results.csv")
 OUT = os.path.join(HERE, "detection_report.html")
 
-STRUCT = ["sloc", "cyclomatic", "maintainability", "halstead_volume",
+STRUCT = ["sloc", "cyclomatic", "cognitive", "maintainability", "halstead_volume",
           "halstead_difficulty", "halstead_effort"]
-SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu"]
+SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu", "ast_similarity"]
 
 # smell -> (structural verdict, similarity verdict, what to rely on) -- the trust summary.
 # structural = the reference-free radon measures; similarity = the reference-based
