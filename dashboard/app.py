@@ -16,9 +16,12 @@ benchmark exactly -- the dashboard is just a front-end onto the existing tool.
 Run:  .venv/Scripts/python dashboard/app.py     then open http://127.0.0.1:5000
 """
 
+import bisect
+import json
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, os.pardir))
@@ -42,7 +45,7 @@ sys.path.insert(0, os.path.join(ROOT, "smell_injection"))
 
 from flask import Flask, request, render_template_string   # noqa: E402
 from measures import PANEL                                  # noqa: E402
-from build_injected import all_smells                       # noqa: E402
+import build_injected as BI                                 # noqa: E402
 from correctness import run_program                         # noqa: E402
 
 try:
@@ -53,6 +56,15 @@ TRUST_MAP = {row[0]: row for row in TRUST}   # smell -> (smell, structural, simi
 
 STRUCT = [m for m in PANEL if not m.needs_ref]
 SIM = [m for m in PANEL if m.needs_ref]
+
+# Clean-code baseline (percentile curves per structural measure), precomputed by
+# build_baselines.py from the real-clean pool. Lets us say where a reading sits.
+try:
+    with open(os.path.join(HERE, "baselines.json"), encoding="utf-8") as f:
+        BASELINES = json.load(f).get("clean", {})
+except Exception:
+    BASELINES = {}
+PROFILE = {"comment_density", "api_calls"}   # profiling measures: show percentile, no good/bad tier
 
 # Pre-filled on first load so the first "Evaluate" visibly detects smells -- this
 # example trips three low-threshold detectors (mutable default, unused variable,
@@ -82,10 +94,84 @@ def _fmt(v, dp):
     return "&mdash;" if v is None else f"{v:.{dp}f}"
 
 
+def _run_detector(cmd):
+    """Run a detector subprocess and parse its JSON. Returns (messages, error).
+    A non-zero exit is NOT an error for these tools -- pylint uses its exit code as
+    a bitmask and ruff returns 1 when it finds issues; the real failure is producing
+    no parseable JSON or failing to launch at all."""
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    except Exception as e:
+        return None, f"could not launch ({type(e).__name__}: {e})"
+    try:
+        return json.loads(proc.stdout or "[]"), None
+    except json.JSONDecodeError:
+        detail = (proc.stderr or proc.stdout or "no output").strip().replace("\n", " ")
+        return None, f"exit {proc.returncode}: {detail[:200]}"
+
+
+def detect_labeled(code):
+    """Same detection as build_injected.all_smells, but it SURFACES detector failures
+    instead of silently returning an empty set -- so a pylint/ruff that can't run
+    reads as a warning, not as 'clean code'. Returns (smells, problems)."""
+    problems, smells = [], set()
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
+        f.write(code)
+        path = f.name
+    try:
+        msgs, err = _run_detector(
+            [sys.executable, "-m", "pylint", path,
+             "--load-plugins=pylint.extensions.magic_value",
+             "--output-format=json", "--disable=all", f"--enable={BI.PYLINT_ENABLE}"])
+        if err:
+            problems.append(f"pylint {err}")
+        else:
+            smells |= {BI.MSGID_TO_SMELL[m["message-id"]] for m in msgs
+                       if m.get("message-id") in BI.MSGID_TO_SMELL}
+        msgs, err = _run_detector(
+            [sys.executable, "-m", "ruff", "check", path, "--isolated",
+             "--select", BI.RUFF_SELECT, "--output-format=json"])
+        if err:
+            problems.append(f"ruff {err}")
+        else:
+            smells |= {BI.RULE_TO_SMELL[m["code"]] for m in msgs
+                       if m.get("code") in BI.RULE_TO_SMELL}
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    try:
+        if BI.has_duplicate(code):
+            smells.add("duplicate_code")
+    except Exception as e:
+        problems.append(f"jscpd: {e}")
+    return sorted(smells), problems
+
+
+def _baseline(name, value):
+    """Where a reading sits versus clean code: (label, css) or None. label is like
+    'p94 - elevated'; the percentile is against the 1000 real clean functions."""
+    b = BASELINES.get(name)
+    if b is None or value is None:
+        return None
+    p = bisect.bisect_right(b["dist"], value)            # 0..100 percentile in clean
+    if name in PROFILE:                                  # profile: percentile only, no verdict
+        return (f"p{p}", "b-neutral")
+    if b["worse"] == "up":                               # higher = worse
+        tier = ("high", "b-high") if p >= 95 else ("elevated", "b-mid") if p >= 75 else ("typical", "b-ok")
+    else:                                                # lower = worse (maintainability)
+        tier = ("very low", "b-high") if p <= 5 else ("low", "b-mid") if p <= 25 else ("typical", "b-ok")
+    return (f"p{p} &middot; {tier[0]}", tier[1])
+
+
 def evaluate(code, ref, tests, run_tests):
     """Run the panel on one snippet. Returns a dict of display-ready pieces."""
-    smells = sorted(all_smells(code, check_dup=True))
-    structural = [(m.name, _fmt(m.fn(code), 2), m.blurb) for m in STRUCT]
+    smells, problems = detect_labeled(code)
+    structural = []
+    for m in STRUCT:
+        v = m.fn(code)
+        structural.append((m.name, _fmt(v, 2), m.blurb, _baseline(m.name, v)))
 
     similarity = None
     if ref.strip():
@@ -96,8 +182,8 @@ def evaluate(code, ref, tests, run_tests):
         correctness = run_program(code + "\n\n" + tests)
 
     hints = [(s, TRUST_MAP.get(s)) for s in smells]
-    return {"smells": smells, "hints": hints, "structural": structural,
-            "similarity": similarity, "correctness": correctness,
+    return {"smells": smells, "problems": problems, "hints": hints,
+            "structural": structural, "similarity": similarity, "correctness": correctness,
             "has_ref": bool(ref.strip()), "has_tests": bool(tests.strip())}
 
 
@@ -147,6 +233,10 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
  .badge{display:inline-block;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600}
  .muted{color:#999;font-size:12.5px}
  .warn{color:#b45309;font-size:11.5px;margin:4px 0 0}
+ td.base{font-variant-numeric:tabular-nums;font-weight:600;font-size:11.5px;white-space:nowrap}
+ .b-ok{color:#15803d} .b-mid{color:#b45309} .b-high{color:#b91c1c} .b-neutral{color:#6b7280}
+ .detfail{color:#b91c1c;font-weight:600;font-size:13px;margin:0 0 6px}
+ .detfail-list{margin:0 0 8px;padding-left:18px} .detfail-list code{font-size:11px;word-break:break-word}
  footer{margin-top:36px;font-size:12.5px;color:#999}
  @media (max-width:720px){.two,.cards{grid-template-columns:1fr}}
  @media (prefers-color-scheme:dark){
@@ -187,7 +277,13 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
  {% if res %}
  <h2>Smell detectors &mdash; the operational label</h2>
  <div class="card full">
-   {% if res.smells %}
+   {% if res.problems %}
+     <p class="detfail">&#9888;&nbsp; The smell detectors could not run here, so no labels were produced
+     &mdash; this is <em>not</em> the same as &ldquo;clean&rdquo;. The structural measures below are unaffected.</p>
+     <ul class="detfail-list">{% for p in res.problems %}<li><code>{{ p }}</code></li>{% endfor %}</ul>
+     <p class="hint">Usually a virtual-env problem &mdash; launch with the project venv:
+     <code>.venv/Scripts/python dashboard/app.py</code>. If it persists, send me this message.</p>
+   {% elif res.smells %}
      {% for s in res.smells %}<span class="chip">{{ s }}</span>{% endfor %}
      {% for s, t in res.hints %}
        {% if t %}<p class="hint"><b>{{ s }}</b> &mdash; structural: {{ t[1] }}, similarity: {{ t[2] }}.
@@ -207,12 +303,16 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
  <div class="cards">
    <div class="card">
      <h2 style="margin-top:2px">Structural measures</h2>
-     <table><tr><th>measure</th><th>value</th><th>what it is</th></tr>
-     {% for name, val, blurb in res.structural %}
+     <table><tr><th>measure</th><th>value</th><th>vs clean</th><th>what it is</th></tr>
+     {% for name, val, blurb, base in res.structural %}
        <tr><td><code>{{ name }}</code></td><td class="num">{{ val|safe }}</td>
+           <td class="base">{% if base %}<span class="{{ base[1] }}">{{ base[0]|safe }}</span>{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
            <td class="blurb">{{ blurb }}</td></tr>
      {% endfor %}
      </table>
+     <p class="muted" style="margin-top:8px">&ldquo;vs clean&rdquo; = percentile against 1000 real clean
+     functions. Elevated = top 25%, High = top 5% (for maintainability, where lower is worse,
+     Low = bottom 25%).</p>
    </div>
 
    <div class="card">

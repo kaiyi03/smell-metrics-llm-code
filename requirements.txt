@@ -16,6 +16,7 @@ codebleu
 tree-sitter
 tree-sitter-python
 nltk
+zss                           # Zhang-Shasha tree edit distance (AST similarity)
 
 # --- interactive dashboard (local web app) ---
 flask
