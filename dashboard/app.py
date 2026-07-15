@@ -66,6 +66,22 @@ except Exception:
     BASELINES = {}
 PROFILE = {"comment_density", "api_calls"}   # profiling measures: show percentile, no good/bad tier
 
+# Smelly-side reference: real clean vs smelly medians per (smell, measure), from the
+# real-world results table. Lets a detected smell show "clean -> you -> smelly".
+SMELLY = {}
+try:
+    import csv as _csv
+    _rw = os.path.join(ROOT, "eval_tool", "realworld_results.csv")
+    for _r in _csv.DictReader(open(_rw, encoding="utf-8")):
+        try:
+            SMELLY[(_r["smell"], _r["measure"])] = {
+                "clean": float(_r["clean_median"]), "smelly": float(_r["smelly_median"]),
+                "d": float(_r["real_cohen_d"])}
+        except (ValueError, KeyError):
+            pass
+except Exception:
+    pass
+
 # Pre-filled on first load so the first "Evaluate" visibly detects smells -- this
 # example trips three low-threshold detectors (mutable default, unused variable,
 # broad except); the reference and tests light up the similarity and correctness panels.
@@ -168,10 +184,23 @@ def _baseline(name, value):
 def evaluate(code, ref, tests, run_tests):
     """Run the panel on one snippet. Returns a dict of display-ready pieces."""
     smells, problems = detect_labeled(code)
-    structural = []
-    for m in STRUCT:
-        v = m.fn(code)
-        structural.append((m.name, _fmt(v, 2), m.blurb, _baseline(m.name, v)))
+    vals = {m.name: m.fn(code) for m in STRUCT}
+    structural = [(m.name, _fmt(vals[m.name], 2), m.blurb, _baseline(m.name, vals[m.name]))
+                  for m in STRUCT]
+
+    # per detected smell: clean -> you -> smelly, for the measures that actually
+    # separate that smell on real code (real Cohen's d >= 1); empty = structure is
+    # blind to it (rely on similarity / the detector instead).
+    compare = []
+    for s in smells:
+        rows = []
+        for m in STRUCT:
+            info = SMELLY.get((s, m.name))
+            if info and info["d"] is not None and info["d"] >= 1.0:
+                rows.append((info["d"], m.name, _fmt(info["clean"], 2),
+                             _fmt(vals[m.name], 2), _fmt(info["smelly"], 2)))
+        rows.sort(reverse=True)
+        compare.append((s, [(n, c, y, sm) for _, n, c, y, sm in rows[:4]]))
 
     similarity = None
     if ref.strip():
@@ -182,7 +211,7 @@ def evaluate(code, ref, tests, run_tests):
         correctness = run_program(code + "\n\n" + tests)
 
     hints = [(s, TRUST_MAP.get(s)) for s in smells]
-    return {"smells": smells, "problems": problems, "hints": hints,
+    return {"smells": smells, "problems": problems, "hints": hints, "compare": compare,
             "structural": structural, "similarity": similarity, "correctness": correctness,
             "has_ref": bool(ref.strip()), "has_tests": bool(tests.strip())}
 
@@ -237,6 +266,11 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
  .b-ok{color:#15803d} .b-mid{color:#b45309} .b-high{color:#b91c1c} .b-neutral{color:#6b7280}
  .detfail{color:#b91c1c;font-weight:600;font-size:13px;margin:0 0 6px}
  .detfail-list{margin:0 0 8px;padding-left:18px} .detfail-list code{font-size:11px;word-break:break-word}
+ table.cmp{width:auto;margin:12px 0 0;font-size:12px}
+ table.cmp caption{text-align:left;font-size:11.5px;color:#888;padding:0 0 4px;caption-side:top}
+ table.cmp th,table.cmp td{padding:3px 16px 3px 0;text-align:right;border-bottom:1px solid #efefef}
+ table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+ td.you{font-weight:700;color:#2563eb}
  footer{margin-top:36px;font-size:12.5px;color:#999}
  @media (max-width:720px){.two,.cards{grid-template-columns:1fr}}
  @media (prefers-color-scheme:dark){
@@ -246,6 +280,7 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
    textarea{background:#0f1115;border-color:#2a2f3a;color:#e6e6e6}
    th,td{border-color:#242a33}td.blurb,th{color:#7a808a}
    code{background:#222732}.hint{color:#a8adb7}.hint b{color:#e6e6e6}
+   td.you{color:#6ea8fe}
  }
 </style></head><body><div class="wrap">
  <h1>Evaluation dashboard</h1>
@@ -289,6 +324,20 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
        {% if t %}<p class="hint"><b>{{ s }}</b> &mdash; structural: {{ t[1] }}, similarity: {{ t[2] }}.
          Rely on: {{ t[3] }}.</p>{% endif %}
      {% endfor %}
+     {% for s, rows in res.compare %}
+       {% if rows %}
+       <table class="cmp"><caption>How this snippet sits for <code>{{ s }}</code> &mdash; real medians</caption>
+       <tr><th>measure</th><th>clean</th><th>you</th><th>smelly</th></tr>
+       {% for name, clean, you, smelly in rows %}
+         <tr><td><code>{{ name }}</code></td><td>{{ clean }}</td><td class="you">{{ you }}</td><td>{{ smelly }}</td></tr>
+       {% endfor %}
+       </table>
+       {% endif %}
+     {% endfor %}
+     {% if res.compare %}<p class="hint" style="margin-top:8px">clean = median of clean code, smelly =
+     median of code flagged with that smell, you = this snippet. Shown for the measures that separate the
+     smell (real d &ge; 1); a smell with no table here is one structure cannot see &mdash; rely on the
+     detector.</p>{% endif %}
    {% else %}
      <span class="clean">No tracked smells detected</span>
      <p class="hint" style="margin-top:10px">The detectors are strict and threshold-based &mdash; they
@@ -365,5 +414,15 @@ def index():
 
 
 if __name__ == "__main__":
-    print("dashboard on http://127.0.0.1:5000  (Ctrl+C to stop)")
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    # self-check: confirm the subprocess detectors run here, so a broken pylint/ruff
+    # is obvious at launch rather than silently reading as "clean code".
+    _found, _probs = detect_labeled("def f(x, acc=[]):\n    return acc\n")
+    if _probs or "mutable_default" not in _found:
+        print("[WARN] the smell detectors are NOT working here:",
+              "; ".join(_probs) or "no smell found on a known-smelly snippet")
+        print("       structural measures still work; fix the venv/tools to get smell labels.")
+    else:
+        print("[ok] smell detectors working")
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"dashboard ready -> open http://127.0.0.1:{port} in your browser   (Ctrl+C to stop)")
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)

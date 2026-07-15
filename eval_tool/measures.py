@@ -158,16 +158,21 @@ _rouge = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
 _word = re.compile(r"\w+|\S")
 
 
-def _ensure_wordnet():
-    """METEOR needs the WordNet corpus; fetch it once if it isn't already there."""
-    for res, pkg in (("corpora/wordnet", "wordnet"), ("corpora/omw-1.4", "omw-1.4")):
+def _wordnet_available():
+    """METEOR needs the WordNet corpus. Check for it WITHOUT triggering a network
+    download at import time -- a failed download hangs the process (offline ARC, a
+    sandbox, no internet). If WordNet is genuinely absent, METEOR degrades to None and
+    the other five similarity measures carry on. Install it once, ahead of time, with:
+        python -m nltk.downloader wordnet omw-1.4"""
+    for res in ("corpora/wordnet", "corpora/omw-1.4"):
         try:
             nltk.data.find(res)
         except LookupError:
-            nltk.download(pkg, quiet=True)
+            return False
+    return True
 
 
-_ensure_wordnet()
+_WORDNET = _wordnet_available()
 
 
 def _bleu(code, ref):
@@ -183,6 +188,8 @@ def _codebleu(code, ref):
     return calc_codebleu([ref], [code], lang="python")["codebleu"] * 100
 
 def _meteor(code, ref):
+    if not _WORDNET:                                   # corpus missing -> degrade, don't crash
+        return None
     return single_meteor_score(_word.findall(ref), _word.findall(code)) * 100
 
 def _ast_seq(code):
