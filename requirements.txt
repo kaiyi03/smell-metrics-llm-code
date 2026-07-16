@@ -21,8 +21,10 @@ zss                           # Zhang-Shasha tree edit distance (AST similarity)
 # --- interactive dashboard (local web app) ---
 flask
 
-# --- model generation (ARC GPU phase) ---
+# --- model generation + model-based measures (ARC GPU phase) ---
 transformers
+bert-score                    # BERTScore (model-based similarity measure)
+code-bert-score               # CodeBERTScore (code-aware model-based similarity)
 # torch is installed separately, matched to your CUDA, e.g.:
 #   pip install torch --index-url https://download.pytorch.org/whl/cu124
 

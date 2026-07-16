@@ -240,5 +240,14 @@ SIMILARITY = [
 ]
 
 
-# The full panel. Fluency (perplexity) can be appended here later.
+# The full panel = structural + similarity, plus the model-based measures (perplexity,
+# CodeBERTScore, BERTScore) when a GPU is available -- see gpu_measures. Without
+# torch/CUDA the import fails and the panel stays CPU-only, so the dashboard and laptop
+# runs are unaffected. On ARC the same PANEL flows through run_panel / evaluate_generations.
 PANEL = list(STRUCTURAL) + list(SIMILARITY)
+try:
+    import gpu_measures                                    # noqa: E402
+    if gpu_measures.AVAILABLE:
+        PANEL += gpu_measures.measures(Measure, _safe)
+except Exception:
+    pass
