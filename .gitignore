@@ -14,6 +14,8 @@
 !/eval_tool
 !/arc_qwen
 !/dashboard
+!/deploy
+!/Dockerfile
 
 # Within the allowed folders, still exclude generated / heavy / third-party bits:
 __pycache__/

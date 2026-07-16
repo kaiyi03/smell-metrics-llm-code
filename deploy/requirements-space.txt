@@ -1,0 +1,16 @@
+# Slim dependencies for the hosted dashboard (Hugging Face Space / Render / etc.).
+# Deliberately excludes torch, transformers and datasets -- those are only for the
+# GPU generation phase and would make the image huge and slow to build.
+flask
+numpy
+radon
+pylint
+ruff
+cognitive_complexity
+zss
+sacrebleu
+rouge-score
+codebleu
+tree-sitter
+tree-sitter-python
+nltk

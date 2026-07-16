@@ -107,6 +107,9 @@ assert scale([], 5) == []
 """
 
 app = Flask(__name__)
+# Running the test block executes user-submitted code. Fine locally; on a public
+# deployment set ALLOW_EXEC=0 to disable it (the rest of the tool still works).
+EXEC_ALLOWED = os.environ.get("ALLOW_EXEC", "1") != "0"
 
 
 def _fmt(v, dp):
@@ -227,7 +230,7 @@ def evaluate(code, ref, tests, run_tests):
         similarity = [(m.name, _fmt(m.fn(code, ref), 1), m.blurb) for m in SIM]
 
     correctness = None
-    if tests.strip() and run_tests:
+    if tests.strip() and run_tests and EXEC_ALLOWED:
         correctness = run_program(code + "\n\n" + tests)
 
     detections = [{"smell": s, "locs": locations.get(s, []), "trust": TRUST_MAP.get(s)}
@@ -328,8 +331,9 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
      </div>
    </div>
    <div class="row">
-     <label class="chk"><input type="checkbox" name="run_tests" value="1" {{ 'checked' if run_tests }}>
-       Execute the test block</label>
+     <label class="chk"><input type="checkbox" name="run_tests" value="1" {{ 'checked' if run_tests }}
+       {{ 'disabled' if not exec_allowed }}> Execute the test block{% if not exec_allowed %}
+       <span class="muted">(disabled on this hosted demo)</span>{% endif %}</label>
      <button type="submit">Evaluate</button>
    </div>
  </form>
@@ -416,6 +420,9 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
    {% if res.correctness %}
      <span class="badge {{ res.correctness }}">{{ res.correctness }}</span>
      <span class="muted">&nbsp; ran the code against your test block.</span>
+   {% elif res.has_tests and not exec_allowed %}
+     <p class="muted">Code execution is disabled on this hosted demo. Run the dashboard locally, or use
+     the command-line tool, to check correctness.</p>
    {% elif res.has_tests %}
      <p class="muted">Tests provided &mdash; tick &ldquo;Execute the test block&rdquo; and re-run to check correctness.</p>
    {% else %}
@@ -440,7 +447,7 @@ def index():
     elif request.method == "GET" and not code:      # first load: show a worked example
         code, ref, tests = EXAMPLE_CODE, EXAMPLE_REF, EXAMPLE_TESTS
     return render_template_string(PAGE, code=code, ref=ref, tests=tests,
-                                  run_tests=run_tests, res=res)
+                                  run_tests=run_tests, res=res, exec_allowed=EXEC_ALLOWED)
 
 
 if __name__ == "__main__":
@@ -455,9 +462,9 @@ if __name__ == "__main__":
         print("[ok] smell detectors working")
     if not getattr(BI, "JSCPD", None):
         print("[note] jscpd not found -> duplicate_code will not be detected (npm install -g jscpd)")
-    port = int(os.environ.get("PORT", "5000"))
-    url = f"http://127.0.0.1:{port}"
-    print(f"dashboard ready -> {url}   (keep this window open; Ctrl+C to stop)")
-    if not os.environ.get("DASH_NO_BROWSER"):        # open the browser for you
-        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+    host = os.environ.get("HOST", "127.0.0.1")       # 0.0.0.0 for a hosted deployment
+    port = int(os.environ.get("PORT", "5000"))       # Hugging Face Spaces uses 7860
+    print(f"dashboard ready -> http://127.0.0.1:{port}   (keep this window open; Ctrl+C to stop)")
+    if host in ("127.0.0.1", "localhost") and not os.environ.get("DASH_NO_BROWSER"):
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    app.run(host=host, port=port, debug=False, use_reloader=False)
