@@ -21,7 +21,9 @@ The same `.html` files live in the repo, but GitHub shows them as source; the li
 
 ## Try it — the interactive dashboard
 
-Paste any Python code and see the smells it contains (each with the line and rule that flags it), its structural measures placed against a clean-code baseline, and similarity to a reference solution. Run it locally with **one command** — the only prerequisite is Python 3.9+:
+**▶ [Open the live dashboard](https://code-smell-dashboard.onrender.com)** — paste any Python code and see the smells it contains (each with the line and rule that flags it), its structural measures against a clean-code baseline, and similarity to a reference solution. Nothing to install. *(Free hosting; the first visit after it has been idle takes ~50 s to wake.)*
+
+Prefer to run it locally? One command — the only prerequisite is Python 3.9+:
 
 ```
 python run.py

@@ -22,6 +22,12 @@
   a.card h2 { margin:0 0 6px; font-size:18px; }
   a.card p { margin:0; color:#666; font-size:14px; }
   a.card .tag { display:inline-block; margin-top:12px; font-size:12px; color:#2563eb; font-weight:600; }
+  a.live { display:block; text-decoration:none; margin:0 0 22px; padding:16px 22px; color:#fff;
+           background:#2563eb; border-radius:12px; box-shadow:0 2px 10px rgba(37,99,235,.28);
+           transition:transform .08s, box-shadow .08s; }
+  a.live:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(37,99,235,.38); }
+  a.live b { font-size:16px; font-weight:700; }
+  a.live .small { display:block; font-weight:400; font-size:13px; opacity:.9; margin-top:4px; }
   .note { color:#b45309; }
   footer { margin-top:40px; font-size:13px; color:#888; }
   footer a { color:#2563eb; text-decoration:none; }
@@ -40,6 +46,11 @@
   <h1>Code Smells &mdash; visualizations</h1>
   <p class="sub">Benchmarking and metrics for poorly-structured (&ldquo;smelly&rdquo;) LLM-generated Python code.</p>
   <p class="meta">Rendered reports from the benchmark and the evaluation tool. Part of a research project at the University of Oxford&rsquo;s Machine Learning Research Group.</p>
+
+  <a class="live" href="https://code-smell-dashboard.onrender.com" target="_blank" rel="noopener">
+    <b>&#9654;&nbsp; Open the live evaluation dashboard</b>
+    <span class="small">Paste any Python code &rarr; the smells it contains (with the line &amp; rule), structural metrics against a clean baseline, and similarity to a reference. Nothing to install &mdash; the first load after it&rsquo;s idle takes ~50&nbsp;s.</span>
+  </a>
 
   <div class="cards">
     <a class="card" href="smell_injection/smell_guide.html">
