@@ -23,13 +23,7 @@ The same `.html` files live in the repo, but GitHub shows them as source; the li
 
 **▶ [Open the live dashboard](https://code-smell-dashboard.onrender.com)** — paste any Python code and see the smells it contains (each with the line and rule that flags it), its structural measures against a clean-code baseline, and similarity to a reference solution. Nothing to install. *(Free hosting; the first visit after it has been idle takes ~50 s to wake.)*
 
-To run it locally: One command — the only prerequisite is Python 3.9+:
-
-```
-python run.py
-```
-
-The first run creates a local environment and installs what it needs (~1–2 min); after that it just starts and opens your browser. On Windows you can instead double-click `dashboard/run_dashboard.bat`. To use without a server at all: Use the command line: `python dashboard/evaluate_cli.py yourfile.py`.
+To run it locally instead: `python run.py` (needs Python 3.9+; first run installs what it needs and opens your browser).
 
 ## Why
 
@@ -81,14 +75,6 @@ Given a piece of code, the tool computes a panel of independent measures:
 - **Correctness** (execution): the function is run against its real test cases.
 
 To compare measures that live on different scales, I compute a single **detection-strength score** — a standardised effect size for how cleanly each measure separates smelly code from its clean twin (0 = blind, ~1 = clear, 5 = capped, i.e. essentially perfect). Concretely this is **Cohen's d** — the gap between the clean and smelly means divided by the pooled standard deviation (how much the measure naturally varies), capped at 5. The same statistic is computed on real labelled code, so the injected and real detection strengths are directly comparable. `run_panel.py` writes the results CSV; `run_realworld.py` adds the real-code side; `detection_report.py` merges both into one colour-coded report. 
-
-## Interactive dashboard
-
-`dashboard/app.py` is a small local web app for evaluating a single snippet on demand. Paste code — optionally a reference solution and a test block — and it runs the same panel used on the benchmark: the smell detectors, the structural measures, similarity against the reference, and correctness against the tests. It imports the exact same measures as the offline tool, so the numbers match.
-
-```bash
-.venv/Scripts/python dashboard/app.py      # then open http://127.0.0.1:5000
-```
 
 ## Model generation and scoring
 
