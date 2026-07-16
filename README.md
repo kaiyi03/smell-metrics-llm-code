@@ -19,6 +19,18 @@ The rendered reports are published with GitHub Pages — **[browse them here →
 
 The same `.html` files live in the repo, but GitHub shows them as source; the links above open them rendered.
 
+## Try it — the interactive dashboard
+
+Paste any Python code and see the smells it contains (each with the line and rule that flags it), its structural measures placed against a clean-code baseline, and similarity to a reference solution. Run it locally with **one command** — the only prerequisite is Python 3.9+:
+
+```
+python run.py
+```
+
+The first run creates a local environment and installs what it needs (~1–2 min); after that it just starts and opens your browser. On Windows you can instead double-click `dashboard/run_dashboard.bat`. Prefer no server at all? Use the command line: `python dashboard/evaluate_cli.py yourfile.py`.
+
+To give someone a link with **no setup on their side**, host it — see [deploy/DEPLOY.md](deploy/DEPLOY.md).
+
 ## Why
 
 Metrics like BLEU, cyclomatic complexity, and CodeBLEU are routinely used to judge generated code, but it is rarely clear what each one actually captures. I build a controlled benchmark where I know exactly which smell is present, then test which measures detect it. The early result: **no single measure catches every smell, but the measures are complementary**, so a panel works where any one alone fails.
