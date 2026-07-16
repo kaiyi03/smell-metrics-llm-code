@@ -19,13 +19,13 @@ CHECKS = []
 
 def want(name, code, smell):
     """detect_labeled(code) must include `smell`."""
-    found, problems = detect_labeled(code)
+    found, locs, problems = detect_labeled(code)
     CHECKS.append((smell in found, f"{name}: detects {smell}",
                    f"found={found} problems={problems}"))
 
 
 def want_clean(name, code):
-    found, problems = detect_labeled(code)
+    found, locs, problems = detect_labeled(code)
     CHECKS.append((found == [] and not problems, f"{name}: stays clean",
                    f"found={found} problems={problems}"))
 
@@ -81,13 +81,19 @@ want_clean("three params, shallow, comprehension",
 # ---- multi-smell code: several at once ----
 _multi = ("def f(x, acc=[]):\n    unused = 1\n    try:\n        if x == 7:\n            acc.append(x)\n"
           "    except Exception:\n        pass\n    return acc\n")
-_found, _ = detect_labeled(_multi)
+_found, _locs, _ = detect_labeled(_multi)
 CHECKS.append(({"mutable_default", "dead_code", "broad_except", "magic_number"} <= set(_found),
                "multi-smell: mutable_default + dead_code + broad_except + magic_number all found",
                f"found={_found}"))
 
+# ---- the "where": line number + rule are reported per smell ----
+_f, _locs, _ = detect_labeled("def f(x):\n    return x == 42\n")
+_mn = _locs.get("magic_number", [])
+CHECKS.append((bool(_mn) and _mn[0][0] == 2 and _mn[0][1] == "R2004",
+               "location: magic_number at line 2, rule R2004", f"locs={_mn}"))
+
 # ---- broken input must be reported, not silently 'clean' ----
-_found, _problems = detect_labeled("def f(:\n    return\n")
+_found, _locs, _problems = detect_labeled("def f(:\n    return\n")
 CHECKS.append((_found == [] and bool(_problems), "syntax error: reported as a problem, not 'clean'",
                f"found={_found} problems={_problems}"))
 

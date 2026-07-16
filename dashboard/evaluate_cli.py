@@ -60,13 +60,17 @@ def main():
     name = args.code if args.code != "-" else "stdin"
     print(f"\n=== Evaluation: {name} ===\n")
 
-    # --- detectors ---
-    smells, problems = detect_labeled(code)
+    # --- detectors (with where each smell is: line + rule) ---
+    smells, locations, problems = detect_labeled(code)
     print("SMELL DETECTORS")
     if problems:
         print("  [detector did NOT run] " + "; ".join(problems))
     elif smells:
-        print("  [!] " + ", ".join(smells))
+        for s in smells:
+            print(f"  [!] {s}")
+            for line, rule, msg in locations.get(s, []):
+                where = f"line {line}" if line else "-"
+                print(f"        {where:>8}  {rule}: {msg}")
     else:
         print("  no tracked smells detected (the detectors are threshold-based; "
               "clean by their rules)")

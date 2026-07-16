@@ -23,6 +23,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, os.pardir))
@@ -128,14 +130,19 @@ def _run_detector(cmd):
 
 
 def detect_labeled(code):
-    """Same detection as build_injected.all_smells, but it SURFACES detector failures
-    instead of silently returning an empty set -- so a pylint/ruff that can't run
-    reads as a warning, not as 'clean code'. Returns (smells, problems)."""
-    problems, smells = [], set()
+    """Detection as in build_injected.all_smells, but it also records WHERE each smell
+    is (line + rule) and surfaces detector failures instead of returning a silent empty
+    set. Returns (smells, locations, problems); locations maps a smell to a list of
+    (line, rule, message) tuples."""
+    locations, problems = {}, []
     try:                                       # unparseable code -> say so, don't look "clean"
         ast.parse(code)
     except SyntaxError as e:
-        return [], [f"the code has a syntax error and cannot be analysed: {e.msg} (line {e.lineno})"]
+        return [], {}, [f"the code has a syntax error and cannot be analysed: {e.msg} (line {e.lineno})"]
+
+    def add(smell, line, rule, message):
+        locations.setdefault(smell, []).append((line, rule, message))
+
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
         f.write(code)
         path = f.name
@@ -147,16 +154,21 @@ def detect_labeled(code):
         if err:
             problems.append(f"pylint {err}")
         else:
-            smells |= {BI.MSGID_TO_SMELL[m["message-id"]] for m in msgs
-                       if m.get("message-id") in BI.MSGID_TO_SMELL}
+            for m in msgs:
+                mid = m.get("message-id")
+                if mid in BI.MSGID_TO_SMELL:
+                    add(BI.MSGID_TO_SMELL[mid], m.get("line"), mid, (m.get("message") or "").strip())
         msgs, err = _run_detector(
             [sys.executable, "-m", "ruff", "check", path, "--isolated",
              "--select", BI.RUFF_SELECT, "--output-format=json"])
         if err:
             problems.append(f"ruff {err}")
         else:
-            smells |= {BI.RULE_TO_SMELL[m["code"]] for m in msgs
-                       if m.get("code") in BI.RULE_TO_SMELL}
+            for m in msgs:
+                rule = m.get("code")
+                if rule in BI.RULE_TO_SMELL:
+                    row = (m.get("location") or {}).get("row")
+                    add(BI.RULE_TO_SMELL[rule], row, rule, (m.get("message") or "").strip())
     finally:
         try:
             os.unlink(path)
@@ -164,10 +176,13 @@ def detect_labeled(code):
             pass
     try:
         if BI.has_duplicate(code):
-            smells.add("duplicate_code")
+            add("duplicate_code", None, "jscpd", "a duplicated block was found in the snippet")
     except Exception as e:
         problems.append(f"jscpd: {e}")
-    return sorted(smells), problems
+
+    for s in locations:                        # earliest line first
+        locations[s].sort(key=lambda t: (t[0] is None, t[0]))
+    return sorted(locations), locations, problems
 
 
 def _baseline(name, value):
@@ -188,7 +203,7 @@ def _baseline(name, value):
 
 def evaluate(code, ref, tests, run_tests):
     """Run the panel on one snippet. Returns a dict of display-ready pieces."""
-    smells, problems = detect_labeled(code)
+    smells, locations, problems = detect_labeled(code)
     vals = {m.name: m.fn(code) for m in STRUCT}
     structural = [(m.name, _fmt(vals[m.name], 2), m.blurb, _baseline(m.name, vals[m.name]))
                   for m in STRUCT]
@@ -215,8 +230,9 @@ def evaluate(code, ref, tests, run_tests):
     if tests.strip() and run_tests:
         correctness = run_program(code + "\n\n" + tests)
 
-    hints = [(s, TRUST_MAP.get(s)) for s in smells]
-    return {"smells": smells, "problems": problems, "hints": hints, "compare": compare,
+    detections = [{"smell": s, "locs": locations.get(s, []), "trust": TRUST_MAP.get(s)}
+                  for s in smells]
+    return {"smells": smells, "problems": problems, "detections": detections, "compare": compare,
             "structural": structural, "similarity": similarity, "correctness": correctness,
             "has_ref": bool(ref.strip()), "has_tests": bool(tests.strip())}
 
@@ -276,6 +292,10 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
  table.cmp th,table.cmp td{padding:3px 16px 3px 0;text-align:right;border-bottom:1px solid #efefef}
  table.cmp th:first-child,table.cmp td:first-child{text-align:left}
  td.you{font-weight:700;color:#2563eb}
+ .det{margin:10px 0 0}
+ .det-h{margin:0;font-size:13px} .det-h .rely{color:#888;font-weight:400;font-size:12px}
+ .loc{margin:1px 0 0 2px;font-size:12px;color:#555}
+ .ln{display:inline-block;min-width:52px;color:#2563eb;font-weight:600;font-variant-numeric:tabular-nums}
  footer{margin-top:36px;font-size:12.5px;color:#999}
  @media (max-width:720px){.two,.cards{grid-template-columns:1fr}}
  @media (prefers-color-scheme:dark){
@@ -285,7 +305,7 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
    textarea{background:#0f1115;border-color:#2a2f3a;color:#e6e6e6}
    th,td{border-color:#242a33}td.blurb,th{color:#7a808a}
    code{background:#222732}.hint{color:#a8adb7}.hint b{color:#e6e6e6}
-   td.you{color:#6ea8fe}
+   td.you{color:#6ea8fe} .loc{color:#a8adb7} .ln{color:#6ea8fe} .det-h .rely{color:#7a808a}
  }
 </style></head><body><div class="wrap">
  <h1>Evaluation dashboard</h1>
@@ -325,9 +345,14 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
      <code>.venv/Scripts/python dashboard/app.py</code>. If it persists, send me this message.</p>
    {% elif res.smells %}
      {% for s in res.smells %}<span class="chip">{{ s }}</span>{% endfor %}
-     {% for s, t in res.hints %}
-       {% if t %}<p class="hint"><b>{{ s }}</b> &mdash; structural: {{ t[1] }}, similarity: {{ t[2] }}.
-         Rely on: {{ t[3] }}.</p>{% endif %}
+     {% for d in res.detections %}
+       <div class="det">
+         <p class="det-h"><b>{{ d.smell }}</b>{% if d.trust %} <span class="rely">rely on {{ d.trust[3] }}</span>{% endif %}</p>
+         {% for line, rule, msg in d.locs %}
+           <p class="loc"><span class="ln">{% if line %}line {{ line }}{% else %}&mdash;{% endif %}</span>
+             <code>{{ rule }}</code> {{ msg }}</p>
+         {% endfor %}
+       </div>
      {% endfor %}
      {% for s, rows in res.compare %}
        {% if rows %}
@@ -421,7 +446,7 @@ def index():
 if __name__ == "__main__":
     # self-check: confirm the subprocess detectors run here, so a broken pylint/ruff
     # is obvious at launch rather than silently reading as "clean code".
-    _found, _probs = detect_labeled("def f(x, acc=[]):\n    return acc\n")
+    _found, _loc, _probs = detect_labeled("def f(x, acc=[]):\n    return acc\n")
     if _probs or "mutable_default" not in _found:
         print("[WARN] the smell detectors are NOT working here:",
               "; ".join(_probs) or "no smell found on a known-smelly snippet")
@@ -431,5 +456,8 @@ if __name__ == "__main__":
     if not getattr(BI, "JSCPD", None):
         print("[note] jscpd not found -> duplicate_code will not be detected (npm install -g jscpd)")
     port = int(os.environ.get("PORT", "5000"))
-    print(f"dashboard ready -> open http://127.0.0.1:{port} in your browser   (Ctrl+C to stop)")
+    url = f"http://127.0.0.1:{port}"
+    print(f"dashboard ready -> {url}   (keep this window open; Ctrl+C to stop)")
+    if not os.environ.get("DASH_NO_BROWSER"):        # open the browser for you
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
