@@ -16,6 +16,7 @@ benchmark exactly -- the dashboard is just a front-end onto the existing tool.
 Run:  .venv/Scripts/python dashboard/app.py     then open http://127.0.0.1:5000
 """
 
+import ast
 import bisect
 import json
 import os
@@ -131,6 +132,10 @@ def detect_labeled(code):
     instead of silently returning an empty set -- so a pylint/ruff that can't run
     reads as a warning, not as 'clean code'. Returns (smells, problems)."""
     problems, smells = [], set()
+    try:                                       # unparseable code -> say so, don't look "clean"
+        ast.parse(code)
+    except SyntaxError as e:
+        return [], [f"the code has a syntax error and cannot be analysed: {e.msg} (line {e.lineno})"]
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
         f.write(code)
         path = f.name
@@ -423,6 +428,8 @@ if __name__ == "__main__":
         print("       structural measures still work; fix the venv/tools to get smell labels.")
     else:
         print("[ok] smell detectors working")
+    if not getattr(BI, "JSCPD", None):
+        print("[note] jscpd not found -> duplicate_code will not be detected (npm install -g jscpd)")
     port = int(os.environ.get("PORT", "5000"))
     print(f"dashboard ready -> open http://127.0.0.1:{port} in your browser   (Ctrl+C to stop)")
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
