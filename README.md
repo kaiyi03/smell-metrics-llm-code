@@ -23,13 +23,13 @@ The same `.html` files live in the repo, but GitHub shows them as source; the li
 
 **▶ [Open the live dashboard](https://code-smell-dashboard.onrender.com)** — paste any Python code and see the smells it contains (each with the line and rule that flags it), its structural measures against a clean-code baseline, and similarity to a reference solution. Nothing to install. *(Free hosting; the first visit after it has been idle takes ~50 s to wake.)*
 
-Prefer to run it locally? One command — the only prerequisite is Python 3.9+:
+To run it locally: One command — the only prerequisite is Python 3.9+:
 
 ```
 python run.py
 ```
 
-The first run creates a local environment and installs what it needs (~1–2 min); after that it just starts and opens your browser. On Windows you can instead double-click `dashboard/run_dashboard.bat`. Prefer no server at all? Use the command line: `python dashboard/evaluate_cli.py yourfile.py`.
+The first run creates a local environment and installs what it needs (~1–2 min); after that it just starts and opens your browser. On Windows you can instead double-click `dashboard/run_dashboard.bat`. To use without a server at all: Use the command line: `python dashboard/evaluate_cli.py yourfile.py`.
 
 To give someone a link with **no setup on their side**, host it — see [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
