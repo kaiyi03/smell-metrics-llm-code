@@ -26,9 +26,14 @@ export HF_HOME=/data/engs-applied-machine-learning/some5943/hf
 # Where the repo is checked out on ARC. Override with: REPO=/path sbatch ...
 REPO=${REPO:-~/Code-Smells}
 
-# Measure packages the ARC env may not have yet (harmless if already installed):
-# the model-based ones plus the CPU measures added recently (cognitive complexity, zss).
-pip install -q bert-score code-bert-score cognitive_complexity zss || true
+# The ARC env has torch/transformers (for generation) but not the measure deps.
+# Install them all (fast -- most are pure-Python wheels). codebleu goes in with
+# --no-deps so its old tree-sitter pin doesn't fight tree-sitter-python.
+pip install -q numpy radon pylint ruff sacrebleu rouge-score nltk \
+    cognitive_complexity zss tree-sitter tree-sitter-python \
+    bert-score code-bert-score || true
+pip install -q --no-deps codebleu || true
+python -m nltk.downloader -q wordnet omw-1.4 || true
 
 # Code language model for perplexity (small + code-appropriate). Change to a bigger
 # code model, e.g. the Qwen coder, for a stronger signal.
