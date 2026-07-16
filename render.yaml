@@ -16,8 +16,8 @@ services:
     envVars:
       - key: HOST            # bind all interfaces so Render can route to it
         value: 0.0.0.0
-      - key: ALLOW_EXEC      # public demo: do NOT execute submitted code
-        value: "0"
+      - key: ALLOW_EXEC      # correctness check runs submitted code (enabled deliberately;
+        value: "1"           # isolated container + timeout. Do not add secret env vars here.
       - key: DASH_NO_BROWSER # it's a server; don't try to open a browser
         value: "1"
       - key: PYTHON_VERSION

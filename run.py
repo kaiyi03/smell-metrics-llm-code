@@ -8,7 +8,7 @@ dependencies -- a minute or two, once. Every run after that just starts the
 dashboard and opens your browser. The only prerequisite is Python 3.9+.
 
 (This is the easy path. If you would rather not install anything at all, open the
-hosted version instead -- see deploy/DEPLOY.md.)
+hosted version: https://code-smell-dashboard.onrender.com)
 """
 
 import os
