@@ -8,6 +8,7 @@ broad_except,halstead_effort,860,1000,0.000,0.538,,0.000,47.549
 broad_except,cognitive,860,1000,0.379,0.668,,0.000,8.000
 broad_except,comment_density,860,1000,-0.000,0.019,,0.000,4.516
 broad_except,api_calls,860,1000,-0.000,-1.013,,3.000,9.000
+broad_except,perplexity,860,1000,-0.221,-0.379,,3.609,3.230
 complex_conditional,sloc,223,1000,0.426,2.445,,8.000,127.000
 complex_conditional,cyclomatic,223,1000,5.000,2.545,,2.000,47.000
 complex_conditional,maintainability,223,1000,0.779,2.889,,100.000,45.418
@@ -17,6 +18,7 @@ complex_conditional,halstead_effort,223,1000,0.454,2.050,,0.000,3406.708
 complex_conditional,cognitive,223,1000,0.759,2.336,,0.000,55.000
 complex_conditional,comment_density,223,1000,-0.000,-0.077,,0.000,6.736
 complex_conditional,api_calls,223,1000,-0.000,-2.535,,3.000,34.000
+complex_conditional,perplexity,223,1000,-0.070,-0.348,,3.609,3.272
 dead_code,sloc,348,1000,0.213,-0.032,,8.000,10.000
 dead_code,cyclomatic,348,1000,0.000,0.040,,2.000,1.000
 dead_code,maintainability,348,1000,0.036,-0.019,,100.000,100.000
@@ -26,6 +28,7 @@ dead_code,halstead_effort,348,1000,0.000,0.017,,0.000,0.000
 dead_code,cognitive,348,1000,0.000,0.110,,0.000,0.000
 dead_code,comment_density,348,1000,-0.000,-0.286,,0.000,0.000
 dead_code,api_calls,348,1000,-0.000,0.312,,3.000,2.000
+dead_code,perplexity,348,1000,0.213,0.301,,3.609,4.348
 deep_nesting,sloc,136,1000,1.278,4.579,,8.000,308.000
 deep_nesting,cyclomatic,136,1000,3.854,5.000,,2.000,94.000
 deep_nesting,maintainability,136,1000,0.206,4.029,,100.000,34.688
@@ -35,6 +38,7 @@ deep_nesting,halstead_effort,136,1000,0.000,4.337,,0.000,10228.844
 deep_nesting,cognitive,136,1000,3.506,4.695,,0.000,119.000
 deep_nesting,comment_density,136,1000,-0.000,-0.242,,0.000,13.046
 deep_nesting,api_calls,136,1000,-0.592,-5.000,,3.000,46.500
+deep_nesting,perplexity,136,1000,-0.516,-0.455,,3.609,2.965
 duplicate_code,sloc,179,1000,1.063,1.550,,8.000,70.000
 duplicate_code,cyclomatic,179,1000,1.103,1.079,,2.000,7.000
 duplicate_code,maintainability,179,1000,0.538,1.360,,100.000,66.818
@@ -44,6 +48,7 @@ duplicate_code,halstead_effort,179,1000,0.417,0.722,,0.000,89.692
 duplicate_code,cognitive,179,1000,0.690,0.735,,0.000,2.000
 duplicate_code,comment_density,179,1000,-0.000,-0.487,,0.000,3.571
 duplicate_code,api_calls,179,1000,-0.000,-1.433,,3.000,10.000
+duplicate_code,perplexity,179,1000,-1.028,-0.624,,3.609,2.056
 inefficient_copy,sloc,92,1000,0.211,0.908,,8.000,34.000
 inefficient_copy,cyclomatic,92,1000,0.279,2.241,,2.000,8.000
 inefficient_copy,maintainability,92,1000,0.038,1.171,,100.000,66.647
@@ -53,6 +58,7 @@ inefficient_copy,halstead_effort,92,1000,0.000,0.650,,0.000,68.337
 inefficient_copy,cognitive,92,1000,0.179,2.578,,0.000,10.500
 inefficient_copy,comment_density,92,1000,-0.000,0.089,,0.000,1.786
 inefficient_copy,api_calls,92,1000,-0.008,-1.594,,3.000,9.500
+inefficient_copy,perplexity,92,1000,-0.080,-0.445,,3.609,2.528
 inefficient_loop,sloc,300,1000,0.249,0.762,,8.000,23.000
 inefficient_loop,cyclomatic,300,1000,0.000,1.374,,2.000,6.000
 inefficient_loop,maintainability,300,1000,0.008,1.035,,100.000,72.887
@@ -62,6 +68,7 @@ inefficient_loop,halstead_effort,300,1000,0.000,0.779,,0.000,52.850
 inefficient_loop,cognitive,300,1000,0.214,1.295,,0.000,6.000
 inefficient_loop,comment_density,300,1000,-0.000,-0.013,,0.000,3.401
 inefficient_loop,api_calls,300,1000,-0.226,-1.196,,3.000,7.000
+inefficient_loop,perplexity,300,1000,-0.266,-0.527,,3.609,2.422
 long_method,sloc,472,1000,5.000,1.921,1.384,8.000,117.000
 long_method,cyclomatic,472,1000,0.000,1.725,0.960,2.000,22.000
 long_method,maintainability,472,1000,3.083,2.926,2.052,100.000,49.843
@@ -71,6 +78,7 @@ long_method,halstead_effort,472,1000,1.755,1.456,0.847,0.000,3417.381
 long_method,cognitive,472,1000,0.000,1.446,0.787,0.000,29.000
 long_method,comment_density,472,1000,-0.000,-0.193,-0.124,0.000,9.045
 long_method,api_calls,472,1000,-0.000,-3.389,-1.929,3.000,30.000
+long_method,perplexity,472,1000,-1.241,-0.638,0.131,3.609,2.270
 long_parameter_list,sloc,950,1000,0.000,0.354,0.532,8.000,17.000
 long_parameter_list,cyclomatic,950,1000,0.000,0.541,0.098,2.000,4.000
 long_parameter_list,maintainability,950,1000,-0.000,0.832,0.053,100.000,76.555
@@ -80,6 +88,7 @@ long_parameter_list,halstead_effort,950,1000,0.000,0.406,-0.105,0.000,54.812
 long_parameter_list,cognitive,950,1000,0.000,0.444,0.068,0.000,3.000
 long_parameter_list,comment_density,950,1000,-0.000,-0.135,-0.206,0.000,1.923
 long_parameter_list,api_calls,950,1000,-0.000,-0.708,-0.407,3.000,7.000
+long_parameter_list,perplexity,950,1000,-0.381,-0.409,-0.215,3.609,2.778
 magic_number,sloc,250,1000,0.213,0.544,,8.000,22.000
 magic_number,cyclomatic,250,1000,0.000,1.318,,2.000,6.000
 magic_number,maintainability,250,1000,0.537,1.427,,100.000,69.940
@@ -89,6 +98,7 @@ magic_number,halstead_effort,250,1000,0.113,0.591,,0.000,62.278
 magic_number,cognitive,250,1000,0.000,0.892,,0.000,2.000
 magic_number,comment_density,250,1000,-0.000,-0.118,,0.000,0.000
 magic_number,api_calls,250,1000,-0.000,-0.804,,3.000,6.000
+magic_number,perplexity,250,1000,0.459,-0.337,,3.609,2.789
 mutable_default,sloc,489,1000,0.000,0.124,,8.000,13.000
 mutable_default,cyclomatic,489,1000,0.000,0.177,,2.000,2.000
 mutable_default,maintainability,489,1000,-0.000,0.213,,100.000,89.961
@@ -98,6 +108,7 @@ mutable_default,halstead_effort,489,1000,0.000,0.059,,0.000,6.966
 mutable_default,cognitive,489,1000,0.000,0.324,,0.000,1.000
 mutable_default,comment_density,489,1000,-0.000,-0.987,,0.000,19.355
 mutable_default,api_calls,489,1000,-0.000,-0.590,,3.000,6.000
+mutable_default,perplexity,489,1000,0.391,-0.512,,3.609,2.392
 perf_try_in_loop,sloc,300,1000,0.750,0.766,,8.000,26.500
 perf_try_in_loop,cyclomatic,300,1000,0.494,1.106,,2.000,7.000
 perf_try_in_loop,maintainability,300,1000,0.160,1.002,,100.000,73.822
@@ -107,3 +118,4 @@ perf_try_in_loop,halstead_effort,300,1000,0.000,0.607,,0.000,42.794
 perf_try_in_loop,cognitive,300,1000,0.667,1.027,,0.000,9.000
 perf_try_in_loop,comment_density,300,1000,-0.000,-0.215,,0.000,5.953
 perf_try_in_loop,api_calls,300,1000,-0.000,-1.295,,3.000,9.000
+perf_try_in_loop,perplexity,300,1000,-0.047,-0.351,,3.609,2.905

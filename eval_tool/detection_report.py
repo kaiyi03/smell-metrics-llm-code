@@ -24,8 +24,9 @@ CORR = os.path.join(HERE, "correctness_results.csv")
 OUT = os.path.join(HERE, "detection_report.html")
 
 STRUCT = ["sloc", "cyclomatic", "cognitive", "maintainability", "halstead_volume",
-          "halstead_difficulty", "halstead_effort"]
-SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu", "ast_similarity"]
+          "halstead_difficulty", "halstead_effort", "perplexity"]
+SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu", "ast_similarity",
+       "codebert_score", "bertscore"]
 
 # smell -> (structural verdict, similarity verdict, what to rely on) -- the trust summary.
 # structural = the reference-free radon measures; similarity = the reference-based
@@ -135,13 +136,16 @@ code from clean code, computed two ways: on the controlled injected pairs and on
 labelled code. Both use the same unpaired effect size (Cohen&rsquo;s d, positive = worse,
 capped at 5), so they are directly comparable. Deeper shade = stronger separation.</p>""")
 
-    # 1. structural, two-source
-    p.append("<h2>1. Structural measures &mdash; injected vs. real</h2>")
-    p.append('<p class="note">Each cell shows the <b>real</b> detection strength, with the '
-             '<span style="color:#999">injected</span> value beneath. They agree where the finding '
-             'generalises; where they differ, the isolated injection under-tests a smell that real code '
-             'carries alongside extra size or branching (e.g. cyclomatic on long methods: 0.0 injected, '
-             'strong on real). Read top&rarr;bottom: reliably-detected smells first, blind spots last.</p>')
+    # 1. reference-free (structural + perplexity), two-source
+    p.append("<h2>1. Reference-free measures &mdash; injected vs. real</h2>")
+    p.append('<p class="note">Measures that need no reference: the structural ones, plus '
+             '<code>perplexity</code> (a code language model&rsquo;s &ldquo;surprise&rdquo; at the code). '
+             'Each cell shows the <b>real</b> detection strength, with the <span style="color:#999">injected'
+             '</span> value beneath. They agree where the finding generalises; where they differ, the '
+             'isolated injection under-tests a smell that real code carries alongside extra size or branching '
+             '(e.g. cyclomatic on long methods: 0.0 injected, strong on real). <code>perplexity</code> stays '
+             'near zero throughout &mdash; a code model does not find smelly code more surprising. '
+             'Read top&rarr;bottom: reliably-detected smells first, blind spots last.</p>')
     p.append('<div class="scroll">')
     p.append(heat(smells, STRUCT,
                   lambda s, m: real_struct.get((s, m)),
@@ -150,9 +154,12 @@ capped at 5), so they are directly comparable. Deeper shade = stronger separatio
 
     # 2. similarity, injected only
     p.append("<h2>2. Similarity measures &mdash; injected only</h2>")
-    p.append('<p class="note">The reference-based measures need a clean reference to compare against. '
-             'Real naturally-occurring code has no clean twin, so these <b>cannot be validated on real '
-             'code</b> &mdash; their reliability rests on the injected benchmark alone (a stated limitation).</p>')
+    p.append('<p class="note">The reference-based measures &mdash; token overlap (BLEU, chrF, ROUGE-L, '
+             'METEOR, CodeBLEU), tree-edit (<code>ast_similarity</code>) and the embedding-based model '
+             'measures (<code>codebert_score</code>, <code>bertscore</code>) &mdash; all need a clean '
+             'reference. Real naturally-occurring code has no clean twin, so these <b>cannot be validated on '
+             'real code</b>; their reliability rests on the injected benchmark alone (a stated limitation). '
+             'The two model measures separate the smells about as strongly as CodeBLEU.</p>')
     p.append('<div class="scroll">')
     p.append(heat(smells, SIM, lambda s, m: inj_sim.get((s, m))))
     p.append("</div>")
