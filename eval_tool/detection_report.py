@@ -25,8 +25,8 @@ OUT = os.path.join(HERE, "detection_report.html")
 
 STRUCT = ["sloc", "cyclomatic", "cognitive", "maintainability", "halstead_volume",
           "halstead_difficulty", "halstead_effort", "perplexity"]
-SIM = ["bleu", "chrf", "rouge_l", "meteor", "codebleu", "ast_similarity",
-       "codebert_score", "bertscore"]
+SIM = ["bleu", "chrf", "rouge_l", "codebleu", "ast_similarity",
+       "codebert_score", "bertscore"]   # meteor dropped: its WordNet corpus was unavailable on ARC
 
 # smell -> (structural verdict, similarity verdict, what to rely on) -- the trust summary.
 # structural = the reference-free radon measures; similarity = the reference-based
@@ -155,7 +155,7 @@ capped at 5), so they are directly comparable. Deeper shade = stronger separatio
     # 2. similarity, injected only
     p.append("<h2>2. Similarity measures &mdash; injected only</h2>")
     p.append('<p class="note">The reference-based measures &mdash; token overlap (BLEU, chrF, ROUGE-L, '
-             'METEOR, CodeBLEU), tree-edit (<code>ast_similarity</code>) and the embedding-based model '
+             'CodeBLEU), tree-edit (<code>ast_similarity</code>) and the embedding-based model '
              'measures (<code>codebert_score</code>, <code>bertscore</code>) &mdash; all need a clean '
              'reference. Real naturally-occurring code has no clean twin, so these <b>cannot be validated on '
              'real code</b>; their reliability rests on the injected benchmark alone (a stated limitation). '
